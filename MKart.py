@@ -49,6 +49,13 @@ class mywindow(QtWidgets.QMainWindow):
         tree.headerItem().setText(6, QtCore.QCoreApplication.translate("MainW", "ID"))
         tree.headerItem().setText(7, QtCore.QCoreApplication.translate("MainW", "Количество на изделие"))
 
+        but_add_bd = self.ui.pushButton_add_v_bd
+        but_add_bd.clicked.connect(self.dob_izd_k_bd)
+
+        tabl = self.ui.table_zayavk
+        shapka = ['Файл', 'Изделие', 'Кол-во']
+        tabl.setColumnCount(3)
+        tabl.setHorizontalHeaderLabels(shapka)
 
         #tree.setColumnWidth(1, int(tree.width() * 0.1))
         #tree.setColumnWidth(0, int(tree.width() - tree.columnWidth(1) - 81) - 5)
@@ -62,11 +69,103 @@ class mywindow(QtWidgets.QMainWindow):
         #self.action = self.findChild(QtWidgets.QAction, "action")
         #self.action.triggered.connect(self.Smena_Parol)
 
+    def dob_izd_k_bd(self):
+        tree = self.ui.treeWidget
+        s = F.spisok_dreva(tree)
+        bd = F.otkr_f(F.tcfg('BD_dse'),False,"|")
+        n = 0
+        for i in s:
+            ima = i[0]
+            nn = i[1]
+            flag = 0
+            for j in bd:
+                if ima==j[1] and nn == j[0]:
+                    flag=1
+                    break
+            if flag == 0:
+                bd.append([nn,ima,'',''])
+                n+=1
+        F.zap_f(F.tcfg('BD_dse'),bd,'|')
+        if n == 0:
+            showDialog(self,'Новых ДСЕ не добавлено')
+        else:
+            showDialog(self, 'Добавлено ' + str(n) + 'ед. ДСЕ')
 
     def viborXML(self):
+        vklad = self.ui.tabWidget
         putt = F.f_dialog_name(self,'Выбрать XML','',"Файлы *.xml")
+        if putt == '':
+            return
         s=XML.spisok_iz_xml(putt)
-        self.zapoln_tree_spiskom(s)
+        if vklad.currentIndex() == 0:
+            self.zapoln_tree_spiskom(s)
+        if vklad.currentIndex() == 1:
+            self.dob_izd(s,putt)
+
+    def nalich_dannih_v_tk(self,n_dse,n_tk,nomer_st):
+        tk = F.otkr_f(F.scfg('add_docs')+ os.sep + n_tk +"_"+n_dse+'.txt', False, "|")
+        flag = 0
+        for i in tk:
+            if len(i) == 21:
+                if i[20] == '0' and flag == 1:
+                    return
+                if i[20] == '0' and flag == 0:
+                    flag = 1
+                if i[20] == '1':
+                    if i[nomer_st] == "":
+                        return False
+        if flag == 1:
+            return True
+        else:
+            return False
+
+
+
+    def nalich_tk(self,spisok):
+        bd = F.otkr_f(F.tcfg('BD_dse'), False, "|")
+        s_bd = []
+        for i in spisok:
+            ima = i[0]
+            nn = i[1]
+            flag_bd = 0
+            flag_tk = 0
+            flag_marsh = 0
+            flag_vrema = 0
+            for j in bd:
+                if ima == j[1] and nn == j[0]:
+                    flag_bd = 1
+                    if j[2] != '':
+                        flag_tk = 1
+                        if self.nalich_dannih_v_tk(nn,j[2],4) == True:
+                            flag_marsh = 1
+                        if self.nalich_dannih_v_tk(nn,j[2],6) == True and self.nalich_dannih_v_tk(nn,j[2],7) == True:
+                            flag_vrema = 1
+                    break
+            if flag_bd == 0:
+                s_bd.append('нет в базе ' + " " + nn + ' ' + ima)
+            if flag_tk == 0:
+                s_bd.append('нет техкарты '+ " " + nn+ " " + ima)
+            if flag_marsh == 0:
+                s_bd.append('нет маршрутов в тк '+ " " + nn+ " " + ima)
+            if flag_vrema == 0:
+                s_bd.append('нет времени в тк '+ " " + nn+ " " + ima)
+
+        return s_bd
+
+    def dob_izd(self,spisok,putt):
+        sp_tk = self.nalich_tk(spisok)
+        if len(sp_tk) > 0:
+            viv= ''
+            for i in sp_tk:
+                viv += i + '\n'
+            F.copy_bufer(viv)
+            showDialog(self,"Скопировано в буфер:" + '\n' + viv)
+            return
+        tabl = self.ui.table_zayavk
+        s = F.spisok_iz_wtabl(tabl,'',True)
+        s.append([putt,spisok[0][0],''])
+        edit = {2}
+        F.zapoln_wtabl(self,s,tabl,0,edit,(),(),200,True,"")
 
     def zapoln_tree_spiskom(self,spisok):
         tree = self.ui.treeWidget
