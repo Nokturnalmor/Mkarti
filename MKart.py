@@ -52,6 +52,8 @@ class mywindow(QtWidgets.QMainWindow):
         but_add_bd = self.ui.pushButton_add_v_bd
         but_add_bd.clicked.connect(self.dob_izd_k_bd)
 
+        but_cr_mk = self.ui.pushButton_create_MK
+        but_cr_mk.clicked.connect(self.create_mk)
         tabl = self.ui.table_zayavk
         shapka = ['Файл', 'Изделие', 'Кол-во']
         tabl.setColumnCount(3)
@@ -66,30 +68,181 @@ class mywindow(QtWidgets.QMainWindow):
 
         actionXML = self.ui.action_XML
         actionXML.triggered.connect(self.viborXML)
-        #self.action = self.findChild(QtWidgets.QAction, "action")
-        #self.action.triggered.connect(self.Smena_Parol)
 
-    def dob_izd_k_bd(self):
-        tree = self.ui.treeWidget
-        s = F.spisok_dreva(tree)
-        bd = F.otkr_f(F.tcfg('BD_dse'),False,"|")
-        n = 0
-        for i in s:
-            ima = i[0]
-            nn = i[1]
+    def kol_po_zayav(self,sp_xml_tmp,kol):
+        for i in sp_xml_tmp:
+            i[2] = int(i[2]) * int(kol)
+            i[7] = int(i[7]) * int(kol)
+        return sp_xml_tmp
+
+    def create_mk(self):
+        tabl = self.ui.table_zayavk
+        s_vert = []
+
+        sp_izd = F.spisok_iz_wtabl(tabl)
+        for i in sp_izd:
+            putt = i[0]
+            sp_xml_tmp = XML.spisok_iz_xml(putt)
+            sp_xml_tmp = self.kol_po_zayav(sp_xml_tmp,i[2])
+            for j in sp_xml_tmp:
+                if len(s_vert) == 0:
+                    s_vert.append(['' for x in list(range(0, len(j)))])
+                    nach_sod = len(j)
+                s_vert.append(j)
+
+        bd = F.otkr_f(F.tcfg('BD_dse'), False, "|")
+        for i in range(1, len(s_vert)):
+            ima = s_vert[i][0]
+            nn = s_vert[i][1]
+            kol_det_vseg = s_vert[i][7]
             flag = 0
             for j in bd:
-                if ima==j[1] and nn == j[0]:
-                    flag=1
+                if ima == j[1] and nn == j[0]:
+                    flag = 1
                     break
             if flag == 0:
-                bd.append([nn,ima,'',''])
-                n+=1
-        F.zap_f(F.tcfg('BD_dse'),bd,'|')
-        if n == 0:
-            showDialog(self,'Новых ДСЕ не добавлено')
-        else:
-            showDialog(self, 'Добавлено ' + str(n) + 'ед. ДСЕ')
+                showDialog(self,'Не найден в БД ' + ima + ' ' + nn)
+                return
+            if j[2] == '':
+                showDialog(self, 'Не найдена техкарта ' + ima + ' ' + nn)
+                return
+            tk = F.otkr_f(F.scfg('add_docs') + os.sep + j[2] + "_" + nn + '.txt', False, "|")
+            tk = self.grup_tk_po_rabc(tk,kol_det_vseg)
+            self.ogran = nach_sod-1
+            for k in tk:
+                s_vert = self.dob_etap(s_vert,k[0],k[1],k[2],i,self.ogran)
+
+        F.zapoln_wtabl(self,s_vert,tabl,0,0,"","",200,True,'')
+
+    def summa_rc(self,rc):
+        s = ''
+        for i in rc:
+            if F.is_numeric(i):
+                s+=str(i)
+        s = int(s)
+        return s
+
+    def dob_kol(self,spis,nomer,ima):
+        for i in range(0, len(spis)):
+            if i == 0:
+                spis[i].insert(nomer,ima)
+            else:
+                spis[i].insert(nomer, '')
+        return spis
+
+    def dob_etap(self,spis,rc,vrem,oper,stroka,ogran):
+
+        flag = 0
+        for i in range(ogran+1,len(spis[0])):
+            if flag == 1:
+                break
+            if spis[0][i] == rc:
+                flag = 1
+                spis[stroka][i] = str(vrem) + "$" + oper
+                self.ogran = i-1
+                break
+            if self.summa_rc(rc) < self.summa_rc(spis[0][i]):
+                j = i-1
+                while j>=self.ogran:
+                    if j <= ogran:
+                        spis = self.dob_kol(spis, j + 1, rc)
+                        spis[stroka][j + 1] = str(vrem) + "$" + oper
+                        self.ogran = j
+                        flag = 1
+                        break
+                    if self.summa_rc(rc) == self.summa_rc(spis[0][j]):
+                        spis[stroka][j] = str(vrem) + "$" + oper
+                        self.ogran = j-1
+                        flag = 1
+                        break
+                    if self.summa_rc(rc) > self.summa_rc(spis[0][j]):
+                        spis = self.dob_kol(spis, j+1, rc)
+                        spis[stroka][j+1] = str(vrem) + "$" + oper
+                        self.ogran = j-1
+                        flag = 1
+                        break
+                    if j == self.ogran:
+                        spis = self.dob_kol(spis, self.ogran , rc)
+                        spis[stroka][self.ogran] = str(vrem) + "$" + oper
+                        flag = 1
+                        break
+                    j-=1
+            else:
+                j = i + 1
+                while j <= len(spis[0])-1:
+                    if self.summa_rc(rc) == self.summa_rc(spis[0][j]):
+                        spis[stroka][j] = str(vrem) + "$" + oper
+                        self.ogran = j
+                        flag = 1
+                        break
+                    if self.summa_rc(rc) < self.summa_rc(spis[0][j]):
+                        spis = self.dob_kol(spis, j -1, rc)
+                        spis[stroka][j - 1] = str(vrem) + "$" + oper
+                        self.ogran = j - 1
+                        flag = 1
+                        break
+                    j += 1
+                if flag == 0:
+                    spis = self.dob_kol(spis, len(spis[0]), rc)
+                    spis[stroka][len(spis[0])-1] = str(vrem) + "$" + oper
+                    self.ogran = len(spis[0])-1
+                    flag = 1
+                    break
+
+        if flag == 0:
+            spis = self.dob_kol(spis,len(spis[0]),rc)
+            spis[stroka][len(spis[0])-1]= str(vrem) + "$" + oper
+            self.ogran = len(spis[0]) - 1
+        return spis
+
+
+
+    def grup_tk_po_rabc(self,tk,kol_det_vseg):
+        spis = []
+        flag = 0
+        for itk in tk:
+            if len(itk) == 21:
+                if itk[20] == '0' and flag == 1:
+                    return
+                if itk[20] == '0' and flag == 0:
+                    flag = 1
+                if itk[20] == '1':
+                    rc = itk[4]
+                    vrem = F.valm(itk[6]) + kol_det_vseg * F.valm(itk[7])
+                    vrem = round(vrem,1)
+                    n_op = itk[2]
+                    if len(spis) > 0:
+                        if spis[-1][0] == rc:
+                            spis[-1][1]= round(spis[-1][1]+ vrem)
+                            spis[-1][2]+=';' + n_op
+                        else:
+                            spis.append([rc, vrem, n_op])
+                    else:
+                        spis.append([rc,vrem,n_op])
+        return spis
+
+
+    def dob_izd_k_bd(self):
+            tree = self.ui.treeWidget
+            s = F.spisok_dreva(tree)
+            bd = F.otkr_f(F.tcfg('BD_dse'),False,"|")
+            n = 0
+            for i in s:
+                ima = i[0]
+                nn = i[1]
+                flag = 0
+                for j in bd:
+                    if ima==j[1] and nn == j[0]:
+                        flag=1
+                        break
+                if flag == 0:
+                    bd.append([nn,ima,'',''])
+                    n+=1
+            F.zap_f(F.tcfg('BD_dse'),bd,'|')
+            if n == 0:
+                showDialog(self,'Новых ДСЕ не добавлено')
+            else:
+                showDialog(self, 'Добавлено ' + str(n) + 'ед. ДСЕ')
 
     def viborXML(self):
         vklad = self.ui.tabWidget
