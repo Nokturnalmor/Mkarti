@@ -48,12 +48,18 @@ class mywindow(QtWidgets.QMainWindow):
         tree.headerItem().setText(5, QtCore.QCoreApplication.translate("MainW", "Материал3"))
         tree.headerItem().setText(6, QtCore.QCoreApplication.translate("MainW", "ID"))
         tree.headerItem().setText(7, QtCore.QCoreApplication.translate("MainW", "Количество на изделие"))
+        for _ in range(0,8):
+            tree.resizeColumnToContents(_)
 
         but_add_bd = self.ui.pushButton_add_v_bd
         but_add_bd.clicked.connect(self.dob_izd_k_bd)
 
         but_cr_mk = self.ui.pushButton_create_MK
         but_cr_mk.clicked.connect(self.create_mk)
+
+        but_save_mk = self.ui.pushButton_save_MK
+        but_save_mk.clicked.connect(self.save_mk)
+
         tabl = self.ui.table_zayavk
         shapka = ['Файл', 'Изделие', 'Кол-во']
         tabl.setColumnCount(3)
@@ -69,6 +75,23 @@ class mywindow(QtWidgets.QMainWindow):
         actionXML = self.ui.action_XML
         actionXML.triggered.connect(self.viborXML)
 
+    def save_mk(self):
+        tabl = self.ui.table_zayavk
+        if F.nalich_file(F.tcfg('bd_mk')) == False:
+            showDialog(self, 'Не найдена база МК')
+            return
+        bd = F.otkr_f(F.tcfg('bd_mk'),separ="|")
+        nom =  int(bd[len(bd)-1][0]) + 1
+        nom = '0'*(6-len(str(nom)))+str(nom)
+        bd.append([nom,F.date(2),'Открыта'])
+        F.zap_f(F.tcfg('bd_mk'),bd,"|")
+
+        spisok = F.spisok_iz_wtabl(tabl,'|',True)
+        F.zap_f(F.scfg('mk_data') + os.sep + str(nom) + '.txt',spisok,"")
+        showDialog(self,'маршрутная карта ' + str(nom) + ' успешно сохранена' )
+
+
+
     def kol_po_zayav(self,sp_xml_tmp,kol):
         for i in sp_xml_tmp:
             i[2] = int(i[2]) * int(kol)
@@ -77,6 +100,8 @@ class mywindow(QtWidgets.QMainWindow):
 
     def create_mk(self):
         tabl = self.ui.table_zayavk
+        if tabl.columnCount() > 5:
+            return
         s_vert = []
 
         sp_izd = F.spisok_iz_wtabl(tabl)
@@ -88,8 +113,18 @@ class mywindow(QtWidgets.QMainWindow):
                 if len(s_vert) == 0:
                     s_vert.append(['' for x in list(range(0, len(j)))])
                     nach_sod = len(j)
+                    s_vert[0][0] = "Наименование"
+                    s_vert[0][1] = "Обозначение"
+                    s_vert[0][2] = "Кол-во"
+                    s_vert[0][3] = "Материал"
+                    s_vert[0][4] = "Материал2"
+                    s_vert[0][5] = "Материал3"
+                    s_vert[0][6] = "ID"
+                    s_vert[0][7] = "Кол-во на изд."
+                    s_vert[0][8] = 'Масса'
+                    s_vert[0][9] = 'Покуп. изд.'
                 s_vert.append(j)
-
+        
         bd = F.otkr_f(F.tcfg('BD_dse'), False, "|")
         for i in range(1, len(s_vert)):
             ima = s_vert[i][0]
@@ -111,8 +146,57 @@ class mywindow(QtWidgets.QMainWindow):
             self.ogran = nach_sod-1
             for k in tk:
                 s_vert = self.dob_etap(s_vert,k[0],k[1],k[2],i,self.ogran)
+        s_vert = self.oformlenie_sp_pod_mk(s_vert)
+        F.zapoln_wtabl(self,s_vert,tabl,0,0,"","",200,True,'',50)
+        tabl.setSelectionBehavior(1)
+        self.oformlenie_formi_mk(tabl,s_vert)
 
-        F.zapoln_wtabl(self,s_vert,tabl,0,0,"","",200,True,'')
+    def oformlenie_formi_mk(self, tabl,s):
+        for i in range(9,len(s[0])-1,4):
+            for j in range(0, len(s)-1):
+                #if tabl.item(j,i) == None:
+                #    cellinfo = QtWidgets.QTableWidgetItem('')
+                #    tabl.setItem(j,i, cellinfo)
+                tabl.item(j,i).setBackground(QtGui.QColor(227,227,227))
+        for i in range(0,9):
+            for j in range(0, len(s)-1):
+                #if tabl.item(j,i) == None:
+                #    cellinfo = QtWidgets.QTableWidgetItem('')
+                #    tabl.setItem(j,i, cellinfo)
+                tabl.item(j,i).setBackground(QtGui.QColor(227,227,227))
+
+
+
+    def oformlenie_sp_pod_mk(self,s):
+        for i in range(1,len(s)):
+            s[i][0] = '    ' * int(s[i][20]) + s[i][0]
+            s[i][1] = '    ' * int(s[i][20]) + s[i][1]
+            s[i][9] = s[i][9].replace('0','')
+            s[i][9] = s[i][9].replace('1', '+')
+        for i in range(0, len(s)):
+            for j in range(10, 21):
+                s[i].pop(10)
+            s[i].pop(6)
+        for j in s:
+            for i in range(9, len(s[0])):
+                if '$' in j[i]:
+                    vrem, oper = [x for x in j[i].split("$")]
+                    j[i] = 'Время: ' + vrem + ' мин.' + '\n' + 'Операции:' + '\n' + oper
+
+
+        i = 10
+        sp_ins = ['комплектация','изготовление','контроль']
+        while i:
+            if i > len(s[0]):
+                break
+            for j in sp_ins:
+                s = self.dob_kol(s,i,j)
+                i+=1
+            i+=1
+
+
+
+        return s
 
     def summa_rc(self,rc):
         s = ''
@@ -246,13 +330,18 @@ class mywindow(QtWidgets.QMainWindow):
 
     def viborXML(self):
         vklad = self.ui.tabWidget
+        tabl = self.ui.table_zayavk
+        tree = self.ui.treeWidget
         putt = F.f_dialog_name(self,'Выбрать XML','',"Файлы *.xml")
         if putt == '':
             return
         s=XML.spisok_iz_xml(putt)
         if vklad.currentIndex() == 0:
             self.zapoln_tree_spiskom(s)
+            for _ in range(0, 8):
+                tree.resizeColumnToContents(_)
         if vklad.currentIndex() == 1:
+            tabl.setSelectionBehavior(0)
             self.dob_izd(s,putt)
 
     def nalich_dannih_v_tk(self,n_dse,n_tk,nomer_st):
@@ -315,6 +404,13 @@ class mywindow(QtWidgets.QMainWindow):
             showDialog(self,"Скопировано в буфер:" + '\n' + viv)
             return
         tabl = self.ui.table_zayavk
+        if tabl.columnCount() > 5:
+            tabl.clear()
+            tabl.clearContents()
+            shapka = ['Файл', 'Изделие', 'Кол-во']
+            tabl.setColumnCount(3)
+            tabl.setRowCount(0)
+            tabl.setHorizontalHeaderLabels(shapka)
         s = F.spisok_iz_wtabl(tabl,'',True)
         s.append([putt,spisok[0][0],''])
         edit = {2}
