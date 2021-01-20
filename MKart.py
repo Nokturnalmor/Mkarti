@@ -35,7 +35,7 @@ class mywindow(QtWidgets.QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
-
+        self.setWindowTitle("Создание маршрутных карт")
         #self.resized.connect(self.widths)
 
         tree = self.ui.treeWidget
@@ -76,6 +76,21 @@ class mywindow(QtWidgets.QMainWindow):
         actionXML.triggered.connect(self.viborXML)
 
     def save_mk(self):
+        nom_pu = self.ui.lineEdit_PY
+        prim = self.ui.lineEdit_prim
+        if nom_pu.text() == "":
+            showDialog(self,"Не введен номер ПУ")
+            return
+        if 'ПУ00-' not in nom_pu.text():
+            if len(nom_pu.text()) > 6:
+                showDialog(self, "Не верно введен номер ПУ")
+                return
+            if F.is_numeric(nom_pu.text()) == False:
+                showDialog(self, "Не верно введен номер ПУ")
+                return
+            nom_pu.setText('ПУ00-' + '0'*(6-len(nom_pu.text())) + nom_pu.text())
+
+
         tabl = self.ui.table_zayavk
         if F.nalich_file(F.tcfg('bd_mk')) == False:
             showDialog(self, 'Не найдена база МК')
@@ -83,10 +98,22 @@ class mywindow(QtWidgets.QMainWindow):
         bd = F.otkr_f(F.tcfg('bd_mk'),separ="|")
         nom =  int(bd[len(bd)-1][0]) + 1
         nom = '0'*(6-len(str(nom)))+str(nom)
-        bd.append([nom,F.date(2),'Открыта'])
+        sp_projects = ''
+        spisok = F.spisok_iz_wtabl(tabl, '', True)
+        for i in range(1, len(spisok)):
+            if spisok[i][1].startswith(' ') == False:
+                sp_projects = sp_projects + spisok[i][1] + ';'
+        sp_projects = sp_projects[0:-1]
+        bd.append([nom,F.date(2),'Открыта',sp_projects,nom_pu.text().strip(),prim.text().replace('\n',' ')])
         F.zap_f(F.tcfg('bd_mk'),bd,"|")
 
-        spisok = F.spisok_iz_wtabl(tabl,'|',True)
+        spisok = F.spisok_iz_wtabl(tabl, '', True)
+        for i in range(0,len(spisok)):
+            for j in range(9,len(spisok[0])):
+                if '\n' in spisok[i][j]:
+                    spisok[i][j] = spisok[i][j].replace('\n','$')
+        for i in range(0, len(spisok)):
+            spisok[i] = "|".join(spisok[i])
         F.zap_f(F.scfg('mk_data') + os.sep + str(nom) + '.txt',spisok,"")
         showDialog(self,'маршрутная карта ' + str(nom) + ' успешно сохранена' )
 
@@ -157,20 +184,22 @@ class mywindow(QtWidgets.QMainWindow):
                 #if tabl.item(j,i) == None:
                 #    cellinfo = QtWidgets.QTableWidgetItem('')
                 #    tabl.setItem(j,i, cellinfo)
-                tabl.item(j,i).setBackground(QtGui.QColor(227,227,227))
+                F.ust_color_wtab(tabl, j, i, 227, 227, 227)
+
+                #tabl.item(j,i).setBackground(QtGui.QColor(227,227,227))
         for i in range(0,9):
             for j in range(0, len(s)-1):
                 #if tabl.item(j,i) == None:
                 #    cellinfo = QtWidgets.QTableWidgetItem('')
                 #    tabl.setItem(j,i, cellinfo)
-                tabl.item(j,i).setBackground(QtGui.QColor(227,227,227))
-
+                #tabl.item(j,i).setBackground(QtGui.QColor(227,227,227))
+                F.ust_color_wtab(tabl, j, i, 227, 227, 227)
 
 
     def oformlenie_sp_pod_mk(self,s):
         for i in range(1,len(s)):
-            s[i][0] = '    ' * int(s[i][20]) + s[i][0]
-            s[i][1] = '    ' * int(s[i][20]) + s[i][1]
+            s[i][0] = '    ' * int(s[i][20]) + s[i][0].strip()
+            s[i][1] = '    ' * int(s[i][20]) + s[i][1].strip()
             s[i][9] = s[i][9].replace('0','')
             s[i][9] = s[i][9].replace('1', '+')
         for i in range(0, len(s)):
@@ -412,6 +441,7 @@ class mywindow(QtWidgets.QMainWindow):
             tabl.setRowCount(0)
             tabl.setHorizontalHeaderLabels(shapka)
         s = F.spisok_iz_wtabl(tabl,'',True)
+
         s.append([putt,spisok[0][0],''])
         edit = {2}
         F.zapoln_wtabl(self,s,tabl,0,edit,(),(),200,True,"")
