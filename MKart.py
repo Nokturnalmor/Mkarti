@@ -122,7 +122,7 @@ class mywindow(QtWidgets.QMainWindow):
     def kol_po_zayav(self,sp_xml_tmp,kol):
         for i in sp_xml_tmp:
             i[2] = int(i[2]) * int(kol)
-            i[7] = int(i[7]) * int(kol)
+
         return sp_xml_tmp
 
     def create_mk(self):
@@ -135,6 +135,9 @@ class mywindow(QtWidgets.QMainWindow):
         for i in sp_izd:
             putt = i[0]
             sp_xml_tmp = XML.spisok_iz_xml(putt)
+            if i[2] == '':
+                showDialog(self,"Не указано кол-во по заявке")
+                return
             sp_xml_tmp = self.kol_po_zayav(sp_xml_tmp,i[2])
             for j in sp_xml_tmp:
                 if len(s_vert) == 0:
@@ -179,7 +182,7 @@ class mywindow(QtWidgets.QMainWindow):
         self.oformlenie_formi_mk(tabl,s_vert)
 
     def oformlenie_formi_mk(self, tabl,s):
-        for i in range(9,len(s[0])-1,4):
+        for i in range(11,len(s[0])-1,4):
             for j in range(0, len(s)-1):
                 #if tabl.item(j,i) == None:
                 #    cellinfo = QtWidgets.QTableWidgetItem('')
@@ -187,7 +190,7 @@ class mywindow(QtWidgets.QMainWindow):
                 F.ust_color_wtab(tabl, j, i, 227, 227, 227)
 
                 #tabl.item(j,i).setBackground(QtGui.QColor(227,227,227))
-        for i in range(0,9):
+        for i in range(0,11):
             for j in range(0, len(s)-1):
                 #if tabl.item(j,i) == None:
                 #    cellinfo = QtWidgets.QTableWidgetItem('')
@@ -195,6 +198,14 @@ class mywindow(QtWidgets.QMainWindow):
                 #tabl.item(j,i).setBackground(QtGui.QColor(227,227,227))
                 F.ust_color_wtab(tabl, j, i, 227, 227, 227)
 
+    def summ_kol(self,s,i):
+        naim = s[i][0].strip()
+        nn = s[i][1].strip()
+        summ = 0
+        for j in range(1,len(s)):
+            if s[j][0].strip() == naim and s[j][1].strip() == nn:
+                summ+= int(s[j][2])
+        return summ
 
     def oformlenie_sp_pod_mk(self,s):
         for i in range(1,len(s)):
@@ -203,17 +214,18 @@ class mywindow(QtWidgets.QMainWindow):
             s[i][9] = s[i][9].replace('0','')
             s[i][9] = s[i][9].replace('1', '+')
         for i in range(0, len(s)):
-            for j in range(10, 21):
-                s[i].pop(10)
-            s[i].pop(6)
+            for j in range(11, 21):
+                s[i].pop(11)
+
+        s[0][10] = 'Сумм.кол-во'
+        for i in range(1, len(s)):
+            s[i][10] = self.summ_kol(s,i)
         for j in s:
-            for i in range(9, len(s[0])):
+            for i in range(11, len(s[0])):
                 if '$' in j[i]:
                     vrem, oper = [x for x in j[i].split("$")]
                     j[i] = 'Время: ' + vrem + ' мин.' + '\n' + 'Операции:' + '\n' + oper
-
-
-        i = 10
+        i = 12
         sp_ins = ['комплектация','изготовление','контроль']
         while i:
             if i > len(s[0]):
@@ -222,9 +234,6 @@ class mywindow(QtWidgets.QMainWindow):
                 s = self.dob_kol(s,i,j)
                 i+=1
             i+=1
-
-
-
         return s
 
     def summa_rc(self,rc):
@@ -321,7 +330,7 @@ class mywindow(QtWidgets.QMainWindow):
                     flag = 1
                 if itk[20] == '1':
                     rc = itk[4]
-                    vrem = F.valm(itk[6]) + kol_det_vseg * F.valm(itk[7])
+                    vrem = F.valm(itk[6]) + int(kol_det_vseg) * F.valm(itk[7])
                     vrem = round(vrem,1)
                     n_op = itk[2]
                     if len(spis) > 0:
