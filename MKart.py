@@ -207,22 +207,27 @@ class mywindow(QtWidgets.QMainWindow):
                 summ+= int(s[j][2])
         return summ
 
+    def udal_kol(self,s,nom):
+        for i in range(0, len(s)):
+            s[i].pop(nom)
+        return s
+
     def oformlenie_sp_pod_mk(self,s):
         for i in range(1,len(s)):
             s[i][0] = '    ' * int(s[i][20]) + s[i][0].strip()
             s[i][1] = '    ' * int(s[i][20]) + s[i][1].strip()
             s[i][9] = s[i][9].replace('0','')
             s[i][9] = s[i][9].replace('1', '+')
-        for i in range(0, len(s)):
-            for j in range(11, 21):
-                s[i].pop(11)
+
+        for j in range(11, 21):
+            s = self.udal_kol(s,11)
 
         s[0][10] = 'Сумм.кол-во'
         for i in range(1, len(s)):
             s[i][10] = self.summ_kol(s,i)
         for j in s:
             for i in range(11, len(s[0])):
-                if '$' in j[i]:
+                if '$' in str(j[i]):
                     vrem, oper = [x for x in j[i].split("$")]
                     j[i] = 'Время: ' + vrem + ' мин.' + '\n' + 'Операции:' + '\n' + oper
         i = 12
