@@ -77,6 +77,7 @@ class mywindow(QtWidgets.QMainWindow):
 
     def save_mk(self):
         nom_pu = self.ui.lineEdit_PY
+        nom_pr = self.ui.lineEdit_np
         prim = self.ui.lineEdit_prim
         if nom_pu.text() == "":
             showDialog(self,"Не введен номер ПУ")
@@ -89,6 +90,16 @@ class mywindow(QtWidgets.QMainWindow):
                 showDialog(self, "Не верно введен номер ПУ")
                 return
             nom_pu.setText('ПУ00-' + '0'*(6-len(nom_pu.text())) + nom_pu.text())
+
+        sp_proektov = F.otkr_f(F.tcfg('BD_Proect'),separ='|')
+        flag = 0
+        for i in range(len(sp_proektov)-1):
+            if len(sp_proektov[i])>1 and sp_proektov[i][1] == nom_pu.text() and sp_proektov[i][0] == nom_pr.text():
+                flag = 1
+                break
+        if flag == 0:
+            showDialog(self, 'Не верно выбран номер проекта')
+            return
 
 
         tabl = self.ui.table_zayavk
@@ -104,7 +115,7 @@ class mywindow(QtWidgets.QMainWindow):
             if spisok[i][1].startswith(' ') == False:
                 sp_projects = sp_projects + spisok[i][1] + ';'
         sp_projects = sp_projects[0:-1]
-        bd.append([nom,F.date(2),'Открыта',sp_projects,nom_pu.text().strip(),prim.text().replace('\n',' ')])
+        bd.append([nom,F.date(2),'Открыта',sp_projects,nom_pu.text().strip(),nom_pr.text().strip(),prim.text().replace('\n',' ')])
         F.zap_f(F.tcfg('bd_mk'),bd,"|")
 
         spisok = F.spisok_iz_wtabl(tabl, '', True)
@@ -171,7 +182,7 @@ class mywindow(QtWidgets.QMainWindow):
             if j[2] == '':
                 showDialog(self, 'Не найдена техкарта ' + ima + ' ' + nn)
                 return
-            tk = F.otkr_f(F.scfg('add_docs') + os.sep + j[2] + "_" + nn + '.txt', False, "|")
+            tk = F.otkr_f(F.scfg('add_docs') + os.sep + j[2] + "_" + nn + '.txt', False, "|",True,True)
             tk = self.grup_tk_po_rabc(tk,kol_det_vseg)
             self.ogran = nach_sod-1
             for k in tk:
