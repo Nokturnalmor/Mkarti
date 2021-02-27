@@ -188,7 +188,7 @@ class mywindow(QtWidgets.QMainWindow):
             for k in tk:
                 s_vert = self.dob_etap(s_vert,k[0],k[1],k[2],i,self.ogran)
         s_vert = self.oformlenie_sp_pod_mk(s_vert)
-        F.zapoln_wtabl(self,s_vert,tabl,0,0,"","",200,True,'',50)
+        F.zapoln_wtabl(self,s_vert,tabl,0,0,"","",200,True,'',90)
         tabl.setSelectionBehavior(1)
         self.oformlenie_formi_mk(tabl,s_vert)
 
@@ -254,6 +254,8 @@ class mywindow(QtWidgets.QMainWindow):
 
     def summa_rc(self,rc):
         s = ''
+        if F.is_numeric(rc):
+            return int(rc)
         for i in rc:
             if F.is_numeric(i):
                 s+=str(i)
@@ -267,6 +269,16 @@ class mywindow(QtWidgets.QMainWindow):
             else:
                 spis[i].insert(nomer, '')
         return spis
+    def poporyadku(self,i,spis,stroka,oper):
+        for j in range(i, len(spis[0])):
+            if spis[stroka][j] != "":
+                arr_tmp_nom = spis[stroka][j].split(';')
+                arr_tmp_nom2 = arr_tmp_nom[-1].split('$')
+                tmp_nom = arr_tmp_nom2[-1]
+                if int(tmp_nom) < int(oper):
+                    return False
+
+        return True
 
     def dob_etap(self,spis,rc,vrem,oper,stroka,ogran):
 
@@ -274,7 +286,7 @@ class mywindow(QtWidgets.QMainWindow):
         for i in range(ogran+1,len(spis[0])):
             if flag == 1:
                 break
-            if spis[0][i] == rc:
+            if spis[0][i] == rc and self.poporyadku(i,spis,stroka,oper) == True:
                 flag = 1
                 spis[stroka][i] = str(vrem) + "$" + oper
                 self.ogran = i-1
@@ -282,21 +294,22 @@ class mywindow(QtWidgets.QMainWindow):
             if self.summa_rc(rc) < self.summa_rc(spis[0][i]):
                 j = i-1
                 while j>=self.ogran:
+                    if self.poporyadku(j+1,spis,stroka,oper) == False:
+                        spis = self.dob_kol(spis, j + 2, rc)
+                        spis[stroka][j + 2] = str(vrem) + "$" + oper
+                        self.ogran = j + 2
+                        flag = 1
+                        break
                     if j <= ogran:
                         spis = self.dob_kol(spis, j + 1, rc)
                         spis[stroka][j + 1] = str(vrem) + "$" + oper
-                        self.ogran = j
+                        self.ogran = j +1
                         flag = 1
                         break
-                    if self.summa_rc(rc) == self.summa_rc(spis[0][j]):
-                        spis[stroka][j] = str(vrem) + "$" + oper
-                        self.ogran = j-1
-                        flag = 1
-                        break
-                    if self.summa_rc(rc) > self.summa_rc(spis[0][j]):
+                    if self.summa_rc(rc) >= self.summa_rc(spis[0][j]):
                         spis = self.dob_kol(spis, j+1, rc)
                         spis[stroka][j+1] = str(vrem) + "$" + oper
-                        self.ogran = j-1
+                        self.ogran = j+1
                         flag = 1
                         break
                     if j == self.ogran:
@@ -308,13 +321,13 @@ class mywindow(QtWidgets.QMainWindow):
             else:
                 j = i + 1
                 while j <= len(spis[0])-1:
-                    if self.summa_rc(rc) == self.summa_rc(spis[0][j]):
+                    if self.summa_rc(rc) == self.summa_rc(spis[0][j]) and self.poporyadku(j+1,spis,stroka,oper) == True:
                         spis[stroka][j] = str(vrem) + "$" + oper
                         self.ogran = j
                         flag = 1
                         break
-                    if self.summa_rc(rc) < self.summa_rc(spis[0][j]):
-                        spis = self.dob_kol(spis, j -1, rc)
+                    if self.summa_rc(rc) < self.summa_rc(spis[0][j]) and self.poporyadku(j+1,spis,stroka,oper) == True:
+                        spis = self.dob_kol(spis, j - 1, rc)
                         spis[stroka][j - 1] = str(vrem) + "$" + oper
                         self.ogran = j - 1
                         flag = 1
