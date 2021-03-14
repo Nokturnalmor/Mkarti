@@ -51,6 +51,45 @@ class mywindow(QtWidgets.QMainWindow):
         for _ in range(0,8):
             tree.resizeColumnToContents(_)
 
+        tabl_nomenk = self.ui.table_nomenkl
+        spis = F.otkr_f(F.tcfg('BD_dse'),False,'|',False,False)
+        F.zapoln_wtabl(self,spis,tabl_nomenk,0,0,(),(),200,True,'')
+        F.ust_cvet_videl_tab(tabl_nomenk)
+        tabl_nomenk.setSelectionBehavior(1)
+        tabl_nomenk.setSelectionMode(1)
+
+        butt_vib_nomen = self.ui.pushButton_ass_nomen_MK
+        butt_vib_nomen.clicked.connect(self.ass_dse_to_mk)
+        F.ust_cvet_videl_tab(butt_vib_nomen)
+
+        combo_PY = self.ui.comboBox_PY
+        combo_PY.activated[int].connect(self.vibor_PY)
+        combo_proekt = self.ui.comboBox_np
+        combo_proekt.activated[int].connect(self.vibor_pr)
+
+        spis = F.otkr_f(F.tcfg('BD_Proect'), False, '|', False, False)
+
+        for i in range(10,len(spis)):
+            if spis[i][3] == 'к производству':
+                combo_PY.addItem(spis[i][1])
+                combo_proekt.addItem(spis[i][0])
+
+        tabl_cr_stukt = self.ui.table_razr_MK
+        self.clear_mk2()
+        self.edit_cr_mk = {2, 3, 4, 5, 8, 9, 19}
+
+        but_clear_mk = self.ui.pushButton_create_mk_clear
+        but_clear_mk.clicked.connect(self.clear_mk2)
+
+        but_add_gl_uzel = self.ui.pushButton_create_koren
+        but_add_gl_uzel.clicked.connect(self.add_gl_uzel)
+
+        but_add_vhod = self.ui.pushButton_create_vxodyash
+        but_add_vhod.clicked.connect(self.add_vhod)
+
+        but_udal_uzel = self.ui.pushButton_create_udalituzel
+        but_udal_uzel.clicked.connect(self.del_uzel)
+
         but_add_bd = self.ui.pushButton_add_v_bd
         but_add_bd.clicked.connect(self.dob_izd_k_bd)
 
@@ -59,6 +98,10 @@ class mywindow(QtWidgets.QMainWindow):
 
         but_save_mk = self.ui.pushButton_save_MK
         but_save_mk.clicked.connect(self.save_mk)
+
+        but_add_v_mk = self.ui.pushButton_add_v_MK
+        but_add_v_mk.clicked.connect(self.add_v_mk)
+
 
         tabl = self.ui.table_zayavk
         shapka = ['Файл', 'Изделие', 'Кол-во']
@@ -74,6 +117,195 @@ class mywindow(QtWidgets.QMainWindow):
 
         actionXML = self.ui.action_XML
         actionXML.triggered.connect(self.viborXML)
+
+    def clear_mk2(self):
+        tabl_cr_stukt = self.ui.table_razr_MK
+        but_add_gl_uzel = self.ui.pushButton_create_koren
+        but_add_vhod = self.ui.pushButton_create_vxodyash
+        but_udal_uzel = self.ui.pushButton_create_udalituzel
+        tabl_cr_stukt.clearContents()
+        tabl_cr_stukt.setRowCount(0)
+        tabl_cr_stukt.setColumnCount(21)
+        shapka = ['Наименование', 'Обозначение', 'Количество', 'Материал', 'Материал2', 'Материал3',
+                  'ID', 'Количество на изделие', 'Вес', 'ПКИ', '', '', '', '', '', '', '', ''
+            , '', 'Кол. по заявке', 'Уровень']
+        tabl_cr_stukt.setHorizontalHeaderLabels(shapka)
+        tabl_cr_stukt.resizeColumnsToContents()
+        for i in range(11, 19):
+            tabl_cr_stukt.setColumnHidden(i, True)
+        F.ust_cvet_videl_tab(tabl_cr_stukt)
+        tabl_cr_stukt.setSelectionMode(1)
+
+        but_add_gl_uzel.setEnabled(True)
+        but_add_vhod.setEnabled(True)
+        but_udal_uzel.setEnabled(True)
+
+    def vibor_PY(self,param):
+        combo_PY = self.ui.comboBox_PY
+        combo_proekt = self.ui.comboBox_np
+        combo_proekt.setCurrentIndex(param)
+        return
+
+    def vibor_pr(self,param):
+        combo_PY = self.ui.comboBox_PY
+        combo_proekt = self.ui.comboBox_np
+        combo_PY.setCurrentIndex(param)
+        return
+
+    def cr_mk2(self):
+        butt_add_gl_uzel = self.ui.pushButton_create_koren
+        tabl_cr_stukt = self.ui.table_razr_MK
+
+
+        nk = F.nom_kol_po_imen(tabl_cr_stukt,'Уровень')
+        nk_kol_p_z = F.nom_kol_po_imen(tabl_cr_stukt, 'Кол. по заявке')
+        nk_kol = F.nom_kol_po_imen(tabl_cr_stukt, 'Количество')
+
+        min =1000
+        for i in range(tabl_cr_stukt.rowCount()):
+            if int(tabl_cr_stukt.item(i,nk).text()) < min:
+                min = int(tabl_cr_stukt.item(i,nk).text())
+        if min > 0:
+            for i in range(tabl_cr_stukt.rowCount()):
+                tabl_cr_stukt.item(i, nk).setText(str(int(tabl_cr_stukt.item(i, nk).text())-min))
+        for i in range(tabl_cr_stukt.rowCount()):
+            if int(tabl_cr_stukt.item(i,nk).text()) == 0:
+                if tabl_cr_stukt.item(i,nk_kol_p_z).text() == "":
+                    F.msgbox('не указано кол-во комплектов на ' + tabl_cr_stukt.item(i,1).text())
+                    tabl_cr_stukt.setCurrentCell(i,nk_kol_p_z)
+                    return False
+                else:
+                    kol = int(tabl_cr_stukt.item(i,nk_kol_p_z).text())
+            tabl_cr_stukt.item(i,nk_kol).setText(str(int(tabl_cr_stukt.item(i,nk_kol).text())* int(kol)))
+        return
+
+
+    def add_v_mk(self):
+        tab = self.ui.tabWidget
+        tab2 = self.ui.tabWidget_2
+        tabl_cr_stukt = self.ui.table_razr_MK
+
+        tree = self.ui.treeWidget
+        if tree.currentIndex().row() == -1:
+            F.msgbox('Не выбран узел')
+            return
+        item = tree.currentItem()
+        if item == None:
+            return
+        nk =  F.nom_kol_po_imen(tree,'ID')
+        current_ID = item.text(nk)
+        sp_tree = F.spisok_dreva(tree)
+        flag_naid = -1
+        for i in range(len(sp_tree)):
+            if sp_tree[i][nk] == current_ID:
+                flag_naid = i
+                break
+        if flag_naid == -1:
+            F.msgbox("Не найден выбранный узел")
+            return
+
+        q_strok = tabl_cr_stukt.currentRow()
+        q_column = tabl_cr_stukt.currentColumn()
+        spisok = F.spisok_iz_wtabl(tabl_cr_stukt, "", True)
+
+        ur = int(sp_tree[flag_naid][20])
+        k = 0
+        spisok.insert(q_strok + 2+k, sp_tree[flag_naid])
+
+        for i in range(flag_naid+1,len(sp_tree)):
+            if int(sp_tree[i][20]) > ur:
+                k=k+1
+                spisok.insert(q_strok + 2 + k, sp_tree[i])
+            else:
+                break
+
+
+        F.zapoln_wtabl(self, spisok, tabl_cr_stukt, 0, self.edit_cr_mk, (), (), 200, True, '', 30)
+        tabl_cr_stukt.clearSelection()
+        tabl_cr_stukt.setCurrentCell(q_strok, q_column)
+        tab.setCurrentIndex(1)
+        tab2.setCurrentIndex(1)
+
+    def ass_dse_to_mk(self):
+        tabl_cr_stukt = self.ui.table_razr_MK
+        tabl_nomenk = self.ui.table_nomenkl
+        if tabl_cr_stukt.currentRow() == -1:
+            F.msgbox('Не выбрана позиция в МК')
+            return
+        if tabl_nomenk.currentRow() == -1:
+            F.msgbox('Не выбрана ДСЕ')
+            return
+
+        naim = F.znach_vib_strok_po_kol(tabl_nomenk,'Наименование')
+        nn = F.znach_vib_strok_po_kol(tabl_nomenk,'Номенклатурный номер')
+        F.zapis_znach_vib_strok_po_kol(tabl_cr_stukt,'Наименование',naim)
+        F.zapis_znach_vib_strok_po_kol(tabl_cr_stukt, 'Обозначение', nn)
+
+    def del_uzel(self):
+        butt_add_gl_uzel = self.ui.pushButton_create_koren
+        tabl_cr_stukt = self.ui.table_razr_MK
+        if tabl_cr_stukt.currentRow() == -1:
+            F.msgbox('Не выбрана позиция в МК')
+            return
+        q_strok = tabl_cr_stukt.currentRow()
+        q_column = tabl_cr_stukt.currentColumn()
+
+        spisok = F.spisok_iz_wtabl(tabl_cr_stukt, "", True)
+        spisok_tmp = spisok.copy()
+        k=0
+        spisok.pop(q_strok + 1)
+        k+=1
+        ur = int(tabl_cr_stukt.item(q_strok,20).text())
+        for i in range(q_strok+2,len(spisok_tmp)):
+            if int(spisok_tmp[i][20]) > ur:
+                spisok.pop(i-k)
+                k += 1
+            else:
+                break
+
+
+        F.zapoln_wtabl(self, spisok, tabl_cr_stukt, 0, self.edit_cr_mk, (), (), 200, True, '', 30)
+        tabl_cr_stukt.setCurrentCell(q_strok, q_column)
+
+    def add_vhod(self):
+        butt_add_gl_uzel = self.ui.pushButton_create_koren
+        tabl_cr_stukt = self.ui.table_razr_MK
+        if tabl_cr_stukt.currentRow() == -1:
+            F.msgbox('Не выбрана позиция в МК')
+            return
+        q_strok = tabl_cr_stukt.currentRow()
+        q_column = tabl_cr_stukt.currentColumn()
+
+        spisok = F.spisok_iz_wtabl(tabl_cr_stukt, "", True)
+        strok = []
+        for i in range(20):
+            strok.append('')
+        strok.append(str(int(tabl_cr_stukt.item(q_strok,20).text())+1))
+        strok[6] = F.time_metka()
+
+        spisok.insert(q_strok+2,strok)
+
+        F.zapoln_wtabl(self, spisok, tabl_cr_stukt, 0, self.edit_cr_mk, (), (), 200, True, '', 30)
+        tabl_cr_stukt.clearSelection()
+
+        tabl_cr_stukt.setCurrentCell(q_strok,q_column)
+
+
+    def add_gl_uzel(self):
+        butt_add_gl_uzel = self.ui.pushButton_create_koren
+        tabl_cr_stukt = self.ui.table_razr_MK
+        spisok = F.spisok_iz_wtabl(tabl_cr_stukt,"",True)
+        strok = []
+        for i in range(20):
+            strok.append('')
+        strok.append('0')
+        strok[6] = F.time_metka()
+
+        spisok.append(strok)
+
+        F.zapoln_wtabl(self,spisok,tabl_cr_stukt,0,self.edit_cr_mk,(),(),200,True,'',30)
+
+
 
     def save_mk(self):
         nom_pu = self.ui.lineEdit_PY
@@ -137,34 +369,51 @@ class mywindow(QtWidgets.QMainWindow):
         return sp_xml_tmp
 
     def create_mk(self):
-        tabl = self.ui.table_zayavk
-        if tabl.columnCount() > 5:
-            return
-        s_vert = []
+        tab2 = self.ui.tabWidget_2
+        if tab2.currentIndex() == 1:
+            but_add_gl_uzel = self.ui.pushButton_create_koren
+            but_add_vhod = self.ui.pushButton_create_vxodyash
+            but_udal_uzel = self.ui.pushButton_create_udalituzel
 
-        sp_izd = F.spisok_iz_wtabl(tabl)
-        for i in sp_izd:
-            putt = i[0]
-            sp_xml_tmp = XML.spisok_iz_xml(putt)
-            if i[2] == '':
-                showDialog(self,"Не указано кол-во по заявке")
+            tabl_cr_stukt = self.ui.table_razr_MK
+            rez = self.cr_mk2()
+            if rez == False:
                 return
-            sp_xml_tmp = self.kol_po_zayav(sp_xml_tmp,i[2])
-            for j in sp_xml_tmp:
-                if len(s_vert) == 0:
-                    s_vert.append(['' for x in list(range(0, len(j)))])
-                    nach_sod = len(j)
-                    s_vert[0][0] = "Наименование"
-                    s_vert[0][1] = "Обозначение"
-                    s_vert[0][2] = "Кол-во"
-                    s_vert[0][3] = "Материал"
-                    s_vert[0][4] = "Материал2"
-                    s_vert[0][5] = "Материал3"
-                    s_vert[0][6] = "ID"
-                    s_vert[0][7] = "Кол-во на изд."
-                    s_vert[0][8] = 'Масса'
-                    s_vert[0][9] = 'Покуп. изд.'
-                s_vert.append(j)
+            s_vert = F.spisok_iz_wtabl(tabl_cr_stukt,"",True)
+            nach_sod = len(s_vert[0])
+            but_add_gl_uzel.setEnabled(False)
+            but_add_vhod.setEnabled(False)
+            but_udal_uzel.setEnabled(False)
+
+        if tab2.currentIndex() == 0:
+            tabl = self.ui.table_zayavk
+            if tabl.columnCount() > 5:
+                return
+            s_vert = []
+
+            sp_izd = F.spisok_iz_wtabl(tabl)
+            for i in sp_izd:
+                putt = i[0]
+                sp_xml_tmp = XML.spisok_iz_xml(putt)
+                if i[2] == '':
+                    showDialog(self,"Не указано кол-во по заявке")
+                    return
+                sp_xml_tmp = self.kol_po_zayav(sp_xml_tmp,i[2])
+                for j in sp_xml_tmp:
+                    if len(s_vert) == 0:
+                        s_vert.append(['' for x in list(range(0, len(j)))])
+                        nach_sod = len(j)
+                        s_vert[0][0] = "Наименование"
+                        s_vert[0][1] = "Обозначение"
+                        s_vert[0][2] = "Кол-во"
+                        s_vert[0][3] = "Материал"
+                        s_vert[0][4] = "Материал2"
+                        s_vert[0][5] = "Материал3"
+                        s_vert[0][6] = "ID"
+                        s_vert[0][7] = "Кол-во на изд."
+                        s_vert[0][8] = 'Масса'
+                        s_vert[0][9] = 'Покуп. изд.'
+                    s_vert.append(j)
         
         bd = F.otkr_f(F.tcfg('BD_dse'), False, "|")
         for i in range(1, len(s_vert)):
@@ -188,9 +437,14 @@ class mywindow(QtWidgets.QMainWindow):
             for k in tk:
                 s_vert = self.dob_etap(s_vert,k[0],k[1],k[2],i,self.ogran)
         s_vert = self.oformlenie_sp_pod_mk(s_vert)
-        F.zapoln_wtabl(self,s_vert,tabl,0,0,"","",200,True,'',90)
-        tabl.setSelectionBehavior(1)
-        self.oformlenie_formi_mk(tabl,s_vert)
+        if tab2.currentIndex() == 1:
+            F.zapoln_wtabl(self, s_vert, tabl_cr_stukt, 0, 0, "", "", 200, True, '', 90)
+            tabl_cr_stukt.setSelectionBehavior(1)
+            self.oformlenie_formi_mk(tabl_cr_stukt, s_vert)
+        if tab2.currentIndex() == 0:
+            F.zapoln_wtabl(self,s_vert,tabl,0,0,"","",200,True,'',90)
+            tabl.setSelectionBehavior(1)
+            self.oformlenie_formi_mk(tabl,s_vert)
 
     def oformlenie_formi_mk(self, tabl,s):
         for i in range(11,len(s[0])-1,4):
@@ -295,25 +549,29 @@ class mywindow(QtWidgets.QMainWindow):
                 j = i-1
                 while j>=self.ogran:
                     if self.poporyadku(j+1,spis,stroka,oper) == False:
-                        spis = self.dob_kol(spis, j + 2, rc)
+                        if spis[0][j + 2] != rc:
+                            spis = self.dob_kol(spis, j + 2, rc)
                         spis[stroka][j + 2] = str(vrem) + "$" + oper
                         self.ogran = j + 2
                         flag = 1
                         break
                     if j <= ogran:
-                        spis = self.dob_kol(spis, j + 1, rc)
+                        if spis[0][j + 1] != rc:
+                            spis = self.dob_kol(spis, j + 1, rc)
                         spis[stroka][j + 1] = str(vrem) + "$" + oper
                         self.ogran = j +1
                         flag = 1
                         break
                     if self.summa_rc(rc) >= self.summa_rc(spis[0][j]):
-                        spis = self.dob_kol(spis, j+1, rc)
+                        if spis[0][j + 1] != rc:
+                            spis = self.dob_kol(spis, j+1, rc)
                         spis[stroka][j+1] = str(vrem) + "$" + oper
                         self.ogran = j+1
                         flag = 1
                         break
                     if j == self.ogran:
-                        spis = self.dob_kol(spis, self.ogran , rc)
+                        if spis[0][self.ogran] != rc:
+                            spis = self.dob_kol(spis, self.ogran , rc)
                         spis[stroka][self.ogran] = str(vrem) + "$" + oper
                         flag = 1
                         break
@@ -399,17 +657,19 @@ class mywindow(QtWidgets.QMainWindow):
         vklad = self.ui.tabWidget
         tabl = self.ui.table_zayavk
         tree = self.ui.treeWidget
-        putt = F.f_dialog_name(self,'Выбрать XML','',"Файлы *.xml")
-        if putt == '':
-            return
-        s=XML.spisok_iz_xml(putt)
-        if vklad.currentIndex() == 0:
-            self.zapoln_tree_spiskom(s)
-            for _ in range(0, 8):
-                tree.resizeColumnToContents(_)
-        if vklad.currentIndex() == 1:
-            tabl.setSelectionBehavior(0)
-            self.dob_izd(s,putt)
+        tab = self.ui.tabWidget
+        if tab.currentIndex() < 2:
+            putt = F.f_dialog_name(self,'Выбрать XML','',"Файлы *.xml")
+            if putt == '':
+                return
+            s=XML.spisok_iz_xml(putt)
+            if vklad.currentIndex() == 0:
+                self.zapoln_tree_spiskom(s)
+                for _ in range(0, 8):
+                    tree.resizeColumnToContents(_)
+            if vklad.currentIndex() == 1:
+                tabl.setSelectionBehavior(0)
+                self.dob_izd(s,putt)
 
     def nalich_dannih_v_tk(self,n_dse,n_tk,nomer_st):
         tk = F.otkr_f(F.scfg('add_docs')+ os.sep + n_tk +"_"+n_dse+'.txt', False, "|")
