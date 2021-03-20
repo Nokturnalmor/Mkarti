@@ -17,6 +17,15 @@ def showDialog(self, msg):
     msgBox.setStandardButtons(QtWidgets.QMessageBox.Ok)  # | QtWidgets.QMessageBox.Cancel)
     returnValue = msgBox.exec()
 
+def showDialog_Y_C(self, msg):
+    msgBox = QtWidgets.QMessageBox()
+    msgBox.setIcon(QtWidgets.QMessageBox.Information)
+    msgBox.setText(msg)
+    msgBox.setWindowTitle("Внимание!")
+    msgBox.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
+    returnValue = msgBox.exec()
+    return returnValue
+
 #class mywindow2(QtWidgets.QDialog):  # диалоговое окно
 #    def __init__(self,parent=None,item_o="",p1=0,p2=0):
 #        self.item_o = item_o
@@ -51,12 +60,24 @@ class mywindow(QtWidgets.QMainWindow):
         for _ in range(0,8):
             tree.resizeColumnToContents(_)
 
-        tabl_nomenk = self.ui.table_nomenkl
-        spis = F.otkr_f(F.tcfg('BD_dse'),False,'|',False,False)
-        F.zapoln_wtabl(self,spis,tabl_nomenk,0,0,(),(),200,True,'')
-        F.ust_cvet_videl_tab(tabl_nomenk)
-        tabl_nomenk.setSelectionBehavior(1)
-        tabl_nomenk.setSelectionMode(1)
+        tab = self.ui.tabWidget
+        tab.currentChanged.connect(self.tab_click)
+
+        self.tabl_nomenk = self.ui.table_nomenkl
+        F.ust_cvet_videl_tab(self.tabl_nomenk)
+        self.tabl_nomenk.setSelectionBehavior(1)
+        self.tabl_nomenk.setSelectionMode(1)
+
+        self.tabl_mk = self.ui.table_spis_MK
+        F.ust_cvet_videl_tab(self.tabl_mk)
+        self.tabl_mk.setSelectionBehavior(1)
+        self.tabl_mk.setSelectionMode(1)
+        self.tabl_mk.cellChanged[int, int].connect(self.corr_mk)
+
+        self.tabl_brak = self.ui.table_brak
+        F.ust_cvet_videl_tab(self.tabl_brak)
+        self.tabl_brak.setSelectionBehavior(1)
+        self.tabl_brak.setSelectionMode(1)
 
         butt_vib_nomen = self.ui.pushButton_ass_nomen_MK
         butt_vib_nomen.clicked.connect(self.ass_dse_to_mk)
@@ -102,6 +123,19 @@ class mywindow(QtWidgets.QMainWindow):
         but_add_v_mk = self.ui.pushButton_add_v_MK
         but_add_v_mk.clicked.connect(self.add_v_mk)
 
+        self.but_ass_brak_to_mk = self.ui.pushButton_ass_brak_to_mk
+        self.but_ass_brak_to_mk.clicked.connect(self.ass_brak_to_mk)
+
+        self.but_open_mk = self.ui.pushButton_open_mk
+        self.but_open_mk.clicked.connect(self.open_mk)
+
+        self.but_close_mk = self.ui.pushButton_close_mk
+        self.but_close_mk.clicked.connect(self.close_mk)
+
+        self.but_del_mk = self.ui.pushButton_del_mk
+        self.but_del_mk.clicked.connect(self.del_mk)
+
+        self.ui.pushButton_clear_label.clicked.connect(self.del_ass)
 
         tabl = self.ui.table_zayavk
         shapka = ['Файл', 'Изделие', 'Кол-во']
@@ -117,6 +151,94 @@ class mywindow(QtWidgets.QMainWindow):
 
         actionXML = self.ui.action_XML
         actionXML.triggered.connect(self.viborXML)
+
+    def del_ass(self):
+        self.ui.label_ass.clear()
+
+    def close_mk(self):
+        if self.tabl_mk.currentRow() == -1:
+            return
+        row = self.tabl_mk.currentRow()
+        kol = F.nom_kol_po_imen(self.tabl_mk, 'Статус')
+        spis_mk = F.otkr_f(F.tcfg('bd_mk'), False, '|', False, False)
+        spis_mk[row + 1][kol] = "Закрыта"
+        F.zap_f(F.tcfg('bd_mk'), spis_mk, '|')
+        self.tab_click()
+
+    def del_mk(self):
+        if self.tabl_mk.currentRow() == -1:
+            return
+        nom_mk = self.tabl_mk.item(self.tabl_mk.currentRow(),0).text()
+        progress = self.tabl_mk.item(self.tabl_mk.currentRow(),F.nom_kol_po_imen(self.tabl_mk,'Прогресс')).text()
+        if progress != '':
+            F.msgbox('Нельзя удалить начатую МК')
+            return
+        otv = showDialog_Y_C(self,'Точно удалить полность маршрутную карту №'
+                             + nom_mk + '?')
+        if otv == 1024:
+            row = self.tabl_mk.currentRow()
+
+            spis_mk = F.otkr_f(F.tcfg('bd_mk'), False, '|', False, False)
+            spis_mk.pop(row + 1)
+            F.zap_f(F.tcfg('bd_mk'), spis_mk, '|')
+            self.tab_click()
+            if F.nalich_file(F.scfg('mk_data') + os.sep + nom_mk + '.txt') == True:
+                F.udal_file(F.scfg('mk_data') + os.sep + nom_mk + '.txt')
+            F.msgbox(nom_mk + ' удалена успешно')
+
+    def open_mk(self):
+        if self.tabl_mk.currentRow() == -1:
+            return
+        row = self.tabl_mk.currentRow()
+        kol = F.nom_kol_po_imen(self.tabl_mk,'Статус')
+        spis_mk = F.otkr_f(F.tcfg('bd_mk'), False, '|', False, False)
+        spis_mk[row+1][kol] = "Открыта"
+        F.zap_f(F.tcfg('bd_mk'),spis_mk,'|')
+        self.tab_click()
+
+
+    def corr_mk(self,row,kol):
+        if self.tabl_mk.hasFocus() == True:
+            if self.tabl_mk.currentRow() == -1:
+                return
+            spis_mk = F.otkr_f(F.tcfg('bd_mk'), False, '|', False, False)
+            spis_mk[row+1][kol] = self.tabl_mk.item(row,kol).text()
+            F.zap_f(F.tcfg('bd_mk'),spis_mk,'|')
+
+
+    def ass_brak_to_mk(self):
+        if self.tabl_brak.currentIndex() == -1:
+            return
+        nom = self.tabl_brak.item(self.tabl_brak.currentRow(),0).text().replace('Номер акта:','')
+        spis_ass = self.ui.label_ass.text().split(';')
+        if spis_ass[0]=='':
+            spis_ass.pop(0)
+        spis_ass.append(nom)
+        self.ui.label_ass.setText(';'.join(spis_ass))
+
+    def tab_click(self):
+        tab = self.ui.tabWidget
+        if tab.currentIndex() == 2: # номенклатура
+            tabl_nomenk = self.ui.table_nomenkl
+            spis = F.otkr_f(F.tcfg('BD_dse'), False, '|', False, False)
+            F.zapoln_wtabl(self, spis, tabl_nomenk, 0, 0, (), (), 200, True, '')
+        if tab.currentIndex() == 3: # брак
+            spis_brak = F.otkr_f(F.tcfg('BDact'), False, '|', False, False)
+            spis_itog = []
+            for i in range(len(spis_brak)):
+                if spis_brak[i][6] == "Категория брака:Неисправимый":
+                    spis_itog.append(spis_brak[i])
+            F.zapoln_wtabl(self, spis_itog, self.tabl_brak, 0, 0, (), (), 200, False, '')
+        if tab.currentIndex() == 4: # мк
+            tabl_mk = self.ui.table_spis_MK
+            if tabl_mk.currentIndex() != -1:
+                tmp_poz = tabl_mk.currentIndex()
+            spis = F.otkr_f(F.tcfg('bd_mk'), False, '|', False, False)
+            spis_korr = {6}
+            F.zapoln_wtabl(self, spis, tabl_mk,0, spis_korr, (), (), 200, True, '')
+            tabl_mk.setCurrentIndex(tmp_poz)
+
+
 
     def clear_mk2(self):
         tabl_cr_stukt = self.ui.table_razr_MK
@@ -308,25 +430,25 @@ class mywindow(QtWidgets.QMainWindow):
 
 
     def save_mk(self):
-        nom_pu = self.ui.lineEdit_PY
-        nom_pr = self.ui.lineEdit_np
+        nom_pu = self.ui.comboBox_PY
+        nom_pr = self.ui.comboBox_np
         prim = self.ui.lineEdit_prim
-        if nom_pu.text() == "":
+        if nom_pu.currentText() == "":
             showDialog(self,"Не введен номер ПУ")
             return
-        if 'ПУ00-' not in nom_pu.text():
-            if len(nom_pu.text()) > 6:
+        if 'ПУ00-' not in nom_pu.currentText():
+            if len(nom_pu.currentText()) > 6:
                 showDialog(self, "Не верно введен номер ПУ")
                 return
-            if F.is_numeric(nom_pu.text()) == False:
+            if F.is_numeric(nom_pu.currentText()) == False:
                 showDialog(self, "Не верно введен номер ПУ")
                 return
-            nom_pu.setText('ПУ00-' + '0'*(6-len(nom_pu.text())) + nom_pu.text())
+            nom_pu.setText('ПУ00-' + '0'*(6-len(nom_pu.currentText())) + nom_pu.currentText())
 
         sp_proektov = F.otkr_f(F.tcfg('BD_Proect'),separ='|')
         flag = 0
         for i in range(len(sp_proektov)-1):
-            if len(sp_proektov[i])>1 and sp_proektov[i][1] == nom_pu.text() and sp_proektov[i][0] == nom_pr.text():
+            if len(sp_proektov[i])>1 and sp_proektov[i][1] == nom_pu.currentText() and sp_proektov[i][0] == nom_pr.currentText():
                 flag = 1
                 break
         if flag == 0:
@@ -343,14 +465,18 @@ class mywindow(QtWidgets.QMainWindow):
         nom = '0'*(6-len(str(nom)))+str(nom)
         sp_projects = ''
         spisok = F.spisok_iz_wtabl(tabl, '', True)
-        for i in range(1, len(spisok)):
-            if spisok[i][1].startswith(' ') == False:
-                sp_projects = sp_projects + spisok[i][1] + ';'
-        sp_projects = sp_projects[0:-1]
-        bd.append([nom,F.date(2),'Открыта',sp_projects,nom_pu.text().strip(),nom_pr.text().strip(),prim.text().replace('\n',' ')])
+        if self.ui.tabWidget_2.currentIndex() == 0:
+            for i in range(1, len(spisok)):
+                if spisok[i][1].startswith(' ') == False:
+                    sp_projects = sp_projects + spisok[i][1] + ';'
+            sp_projects = sp_projects[0:-1]
+        osnovanie = self.ui.label_ass.text()
+        bd.append([nom,F.date(2),'Закрыта',sp_projects,nom_pu.currentText().strip(),nom_pr.currentText().strip(),prim.text().replace('\n',' '),osnovanie,''])
         F.zap_f(F.tcfg('bd_mk'),bd,"|")
-
-        spisok = F.spisok_iz_wtabl(tabl, '', True)
+        if self.ui.tabWidget_2.currentIndex() == 0:
+            spisok = F.spisok_iz_wtabl(tabl, '', True)
+        else:
+            spisok = F.spisok_iz_wtabl(self.ui.table_razr_MK , '', True)
         for i in range(0,len(spisok)):
             for j in range(9,len(spisok[0])):
                 if '\n' in spisok[i][j]:
