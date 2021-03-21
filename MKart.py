@@ -161,9 +161,90 @@ class mywindow(QtWidgets.QMainWindow):
         row = self.tabl_mk.currentRow()
         kol = F.nom_kol_po_imen(self.tabl_mk, 'Статус')
         spis_mk = F.otkr_f(F.tcfg('bd_mk'), False, '|', False, False)
-        spis_mk[row + 1][kol] = "Закрыта"
-        F.zap_f(F.tcfg('bd_mk'), spis_mk, '|')
-        self.tab_click()
+        if spis_mk[row + 1][kol] == "Открыта":
+            spis_mk[row + 1][kol] = "Закрыта"
+            nom_tek_mk = spis_mk[row + 1][F.nom_kol_po_imen(self.tabl_mk, 'Номер')]
+            F.zap_f(F.tcfg('bd_mk'), spis_mk, '|')
+            kol_prog = F.nom_kol_po_imen(self.tabl_mk, 'Прогресс')
+            if spis_mk[row + 1][kol_prog] == "Завершено":
+                ass = spis_mk[row + 1][F.nom_kol_po_imen(self.tabl_mk, 'Основание')]
+                if ass != "":
+                    spis_brak = F.otkr_f(F.tcfg('BDact'), False, '|', False, False)
+                    spis_nar = F.otkr_f(F.tcfg('Naryad'), False, '|')
+                    arr_tmp_ass = ass.split(';')
+                    for nom_acta in arr_tmp_ass:
+
+                        nom_naryada = F.naiti_v_spis_1_1(spis_brak,0,'Номер акта:'+nom_acta,3).replace('Номер наряда:','')
+                        nom_mk = F.naiti_v_spis_1_1(spis_nar,0,nom_naryada,1)
+                        stroka_acta = F.naiti_v_spis_1_1(spis_brak,0,'Номер акта:'+nom_acta)
+                        if '(Изгот.вновь по МК №' not in spis_brak[stroka_acta][7]:
+                            spis_brak[stroka_acta][7] = spis_brak[stroka_acta][7] + '(Изгот.вновь по МК №' + nom_tek_mk + ')'
+
+                        #spis_det_mk = F.otkr_f(F.scfg('mk_data') + os.sep + nom_mk + '.txt', False, '|')
+                    F.zap_f(F.tcfg('BDact'), spis_brak, '|')
+                    for nom_acta in arr_tmp_ass:
+
+                        nom_naryada = F.naiti_v_spis_1_1(spis_brak,0,'Номер акта:'+nom_acta,3).replace('Номер наряда:','')
+                        self.zapis_v_mk(spis_nar,nom_naryada,spis_brak)
+            self.tab_click()
+
+    def zapis_v_mk(self,sp_nar,nom_naryada,spis_brak):
+        nom_mk = F.naiti_v_spis_1_1(sp_nar, 0, nom_naryada, 1)
+        n_op = F.naiti_v_spis_1_1(sp_nar, 0, nom_naryada, F.nom_kol_po_im_v_shap(sp_nar, 'N операции'))
+        id_det = F.naiti_v_spis_1_1(sp_nar, 0, nom_naryada,
+                                    F.nom_kol_po_im_v_shap(sp_nar, 'ID'))
+        sp_tabl_mk  = F.otkr_f(F.scfg('mk_data') + os.sep + nom_mk + '.txt',False,'|')
+        if sp_tabl_mk  == []:
+            self.showDialog('Не корректное содержимое МК')
+            return
+        spis_op = self.spis_op_po_mk_id_op(sp_tabl_mk,id_det,n_op)
+        if spis_op == None:
+            self.showDialog('Не корректное содержимое списка операций')
+            return
+        self.otmetka_v_mk(nom_mk,spis_op, id_det,sp_tabl_mk,sp_nar,spis_brak)
+
+    def spis_op_po_mk_id_op(self,sp_tabl_mk,id,op):
+        for j in range(1, len(sp_tabl_mk)):
+            if sp_tabl_mk[j][6] == id:
+                for i in range(11, len(sp_tabl_mk[0]), 4):
+                    if sp_tabl_mk[j][i].strip() != '':
+                        obr = sp_tabl_mk[j][i].strip().split('$')
+                        obr2 = obr[-1].split(";")
+                        if op in obr2:
+                            return obr2
+                return None
+
+    def otmetka_v_mk(self,nom,spis_op,id,sp_tabl_mk,spis_nar,spis_brak):
+        for j in range(1,len(sp_tabl_mk)):
+            if sp_tabl_mk[j][6]==id:
+                for i in range(11, len(sp_tabl_mk[0]), 4):
+                    if sp_tabl_mk[j][i].strip() != '':
+                        obr = sp_tabl_mk[j][i].strip().split('$')
+                        obr2 = obr[-1].split(";")
+                        if spis_op == obr2:
+                            text_act = self.spis_act_po_mk_id_op(nom,id,spis_op,spis_nar,spis_brak)
+                            sp_tabl_mk[j][i + 3] = '$'.join(text_act)
+                            F.zap_f(F.scfg('mk_data') + os.sep + nom + '.txt',sp_tabl_mk,'|')
+                            return
+
+    def spis_act_po_mk_id_op(self, mk, id, spis_op,nar,sp_act):
+        sp = []
+
+        for i in range(1, len(nar)):
+            if nar[i][1].strip() == str(mk) and nar[i][25].strip() == str(id) and nar[i][24].strip() in spis_op:
+                for j in range(len(sp_act)):
+                    if sp_act[j][3] == 'Номер наряда:' + nar[i][0].strip():
+                        sost = ''
+                        if '(Исправлен по наряду №' in sp_act[j][7]:
+                            sost = 'Исправлен'
+                        elif sp_act[j][6] == 'Категория брака:Неисправимый':
+                            if '(Изгот.вновь по МК №' in sp_act[j][7]:
+                                sost = 'Изгот.вновь'
+                            else:
+                                sost = 'Неисп-мый'
+                        nom_acta = sp_act[j][0].replace('Номер акта:', '')
+                        sp.append(nom_acta + ' ' + sost)
+        return sp
 
     def del_mk(self):
         if self.tabl_mk.currentRow() == -1:
@@ -192,9 +273,13 @@ class mywindow(QtWidgets.QMainWindow):
         row = self.tabl_mk.currentRow()
         kol = F.nom_kol_po_imen(self.tabl_mk,'Статус')
         spis_mk = F.otkr_f(F.tcfg('bd_mk'), False, '|', False, False)
-        spis_mk[row+1][kol] = "Открыта"
-        F.zap_f(F.tcfg('bd_mk'),spis_mk,'|')
-        self.tab_click()
+        if spis_mk[row+1][kol] == "Закрыта":
+            if spis_mk[row+1][F.nom_kol_po_imen(self.tabl_mk,'Прогресс')] == "Завершено":
+                F.msgbox('Нельзя открыть завершенную закрытую МК')
+                return
+            spis_mk[row+1][kol] = "Открыта"
+            F.zap_f(F.tcfg('bd_mk'),spis_mk,'|')
+            self.tab_click()
 
 
     def corr_mk(self,row,kol):
@@ -227,7 +312,8 @@ class mywindow(QtWidgets.QMainWindow):
             spis_itog = []
             for i in range(len(spis_brak)):
                 if spis_brak[i][6] == "Категория брака:Неисправимый":
-                    spis_itog.append(spis_brak[i])
+                    if '(Изгот.вновь по МК №' not in spis_brak[i][7]:
+                        spis_itog.append(spis_brak[i])
             F.zapoln_wtabl(self, spis_itog, self.tabl_brak, 0, 0, (), (), 200, False, '')
         if tab.currentIndex() == 4: # мк
             tabl_mk = self.ui.table_spis_MK
@@ -236,6 +322,10 @@ class mywindow(QtWidgets.QMainWindow):
             spis = F.otkr_f(F.tcfg('bd_mk'), False, '|', False, False)
             spis_korr = {6}
             F.zapoln_wtabl(self, spis, tabl_mk,0, spis_korr, (), (), 200, True, '')
+
+            F.cvet_cell_wtabl(tabl_mk,'Прогресс','','Завершено')
+            F.cvet_cell_wtabl(tabl_mk, 'Статус', '', 'Закрыта')
+
             tabl_mk.setCurrentIndex(tmp_poz)
 
 
