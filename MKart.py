@@ -59,6 +59,9 @@ class mywindow(QtWidgets.QMainWindow):
         tree.headerItem().setText(7, QtCore.QCoreApplication.translate("MainW", "Количество на изделие"))
         for _ in range(0,8):
             tree.resizeColumnToContents(_)
+        tree.setSelectionBehavior(1)
+        F.ust_cvet_videl_tab(tree)
+        tree.setSelectionMode(1)
 
         tab = self.ui.tabWidget
         tab.currentChanged.connect(self.tab_click)
@@ -78,6 +81,8 @@ class mywindow(QtWidgets.QMainWindow):
         F.ust_cvet_videl_tab(self.tabl_brak)
         self.tabl_brak.setSelectionBehavior(1)
         self.tabl_brak.setSelectionMode(1)
+        self.tabl_brak.clicked.connect(self.click_brak)
+        self.tabl_brak.doubleClicked.connect(self.tabl_brak_dbl_clk)
 
         butt_vib_nomen = self.ui.pushButton_ass_nomen_MK
         butt_vib_nomen.clicked.connect(self.ass_dse_to_mk)
@@ -102,6 +107,7 @@ class mywindow(QtWidgets.QMainWindow):
         but_clear_mk = self.ui.pushButton_create_mk_clear
         but_clear_mk.clicked.connect(self.clear_mk2)
 
+
         but_add_gl_uzel = self.ui.pushButton_create_koren
         but_add_gl_uzel.clicked.connect(self.add_gl_uzel)
 
@@ -125,6 +131,7 @@ class mywindow(QtWidgets.QMainWindow):
 
         self.but_ass_brak_to_mk = self.ui.pushButton_ass_brak_to_mk
         self.but_ass_brak_to_mk.clicked.connect(self.ass_brak_to_mk)
+        self.ui.pushButton_ass_brak_to_mk.setEnabled(False)
 
         self.but_open_mk = self.ui.pushButton_open_mk
         self.but_open_mk.clicked.connect(self.open_mk)
@@ -151,6 +158,80 @@ class mywindow(QtWidgets.QMainWindow):
 
         actionXML = self.ui.action_XML
         actionXML.triggered.connect(self.viborXML)
+
+    def tabl_brak_dbl_clk(self):
+        label = self.ui.label_opis_braka
+        strok = self.tabl_brak.currentRow()
+        if label == "":
+            return
+        nom_id = self.naiti_parametr_v_stroke(label.text(), 'ID:')
+
+        if nom_id == "":
+            return
+        kol_det = self.tabl_brak.item(strok,8).text().replace('Количество:','')
+
+        tree = self.ui.treeWidget
+        spis_tree = F.spisok_dreva(tree)
+        if spis_tree == []:
+            F.msgbox("Не открыто древо")
+            self.viborXML()
+            return
+        nom_kol_id = F.nom_kol_po_imen(tree,'ID')
+        for i in range(len(spis_tree)):
+            if spis_tree[i][nom_kol_id] == nom_id:
+                self.ui.tabWidget.setCurrentIndex(0)
+                rez = F.videlit_tree_nom(tree,i+1)
+                if rez == False:
+                    F.msgbox('Детальне найдена')
+                    return
+                self.add_v_mk()
+                table = self.ui.table_razr_MK
+                table.item(table.rowCount()-1,F.nom_kol_po_imen(table,'Кол. по заявке')).setText(kol_det)
+                table.setCurrentCell(table.rowCount()-1,1)
+                return
+
+
+
+
+
+    def click_brak(self):
+        label = self.ui.label_opis_braka
+        strok = self.tabl_brak.currentRow()
+        label.setText('')
+        nom_mk = ""
+        nom_ID = ""
+        if strok == -1:
+            return
+        nom_nar = self.tabl_brak.item(strok,3).text().replace('Номер наряда:','')
+        spis_nar = F.otkr_f(F.tcfg('Naryad'), False, '|')
+        kol_nom_nar = F.nom_kol_po_im_v_shap(spis_nar,'№')
+        kol_nom_mk = F.nom_kol_po_im_v_shap(spis_nar,'МК')
+        kol_nom_ID =F.nom_kol_po_im_v_shap(spis_nar,'ID')
+        kol_nom_oper = F.nom_kol_po_im_v_shap(spis_nar,'N операции')
+        for i in range(len(spis_nar)-1,0,-1):
+            if spis_nar[i][kol_nom_nar] == nom_nar:
+                nom_mk = spis_nar[i][kol_nom_mk]
+                nom_ID = spis_nar[i][kol_nom_ID]
+                nom_oper = spis_nar[i][kol_nom_oper]
+                break
+        if nom_mk == "":
+            return
+        if nom_ID == '':
+            return
+
+        sp_tabl_mk = F.otkr_f(F.scfg('mk_data') + os.sep + nom_mk + '.txt', False, '|')
+        if sp_tabl_mk == ['']:
+            return
+        kol_nom_ID = F.nom_kol_po_im_v_shap(sp_tabl_mk,'ID')
+        kol_naim_det = F.nom_kol_po_im_v_shap(sp_tabl_mk,'Наименование')
+        kol_nom_det =F.nom_kol_po_im_v_shap(sp_tabl_mk,'Обозначение')
+        for i in range(len(sp_tabl_mk)):
+            if sp_tabl_mk[i][kol_nom_ID] == nom_ID:
+                naim_det = sp_tabl_mk[i][kol_naim_det]
+                nom_det = sp_tabl_mk[i][kol_nom_det]
+                break
+        label.setText('ID:' + nom_ID + '     ДСЕ:' + naim_det + nom_det + '       МК:' + nom_mk + '     № операции:' + nom_oper )
+        return
 
     def del_ass(self):
         self.ui.label_ass.clear()
@@ -290,11 +371,54 @@ class mywindow(QtWidgets.QMainWindow):
             spis_mk[row+1][kol] = self.tabl_mk.item(row,kol).text()
             F.zap_f(F.tcfg('bd_mk'),spis_mk,'|')
 
+    def naiti_parametr_v_stroke(self,stroka,parametr):
+        arr = stroka.split('  ')
+        for i in arr:
+            if i != '':
+                if i.strip().startswith(parametr) == True:
+                    return i.replace(parametr,'').strip()
+
 
     def ass_brak_to_mk(self):
         if self.tabl_brak.currentIndex() == -1:
             return
+        tabl_razr_mk = self.ui.table_razr_MK
+        label = self.ui.label_ass
+        label_brak = self.ui.label_opis_braka
+        nom_oper = self.naiti_parametr_v_stroke(label_brak.text(),'№ операции:')
+        nom_id = self.naiti_parametr_v_stroke(label_brak.text(),'ID:')
+        nom_kol_nach_tabl = F.nom_kol_po_imen(tabl_razr_mk,'Сумм.кол-во')
+        if nom_kol_nach_tabl == None:
+            F.msgbox('Не создана МК')
+            return
+        kol_id = F.nom_kol_po_imen(tabl_razr_mk,'ID')
+        flag_naid = False
+        for i in range(tabl_razr_mk.rowCount()):
+            if flag_naid == True:
+                break
+            if tabl_razr_mk.item(i,kol_id).text() == nom_id:
+                for j in range(tabl_razr_mk.columnCount()-1,nom_kol_nach_tabl,-1):
+                    if tabl_razr_mk.item(i,j).text() != '':
+                        if nom_oper not in tabl_razr_mk.item(i,j).text():
+                            tabl_razr_mk.item(i, j).setText('')
+                            flag_pust=True
+                            for k in range(tabl_razr_mk.rowCount()):
+                                if tabl_razr_mk.item(k,j).text() != '':
+                                    flag_pust = False
+                                    break
+                            if flag_pust == True:
+                                for k in range(5):
+                                    tabl_razr_mk.removeColumn(j)
+                        else:
+                            flag_naid = True
+                            break
+        if flag_naid == False:
+            F.msgbox('Не найдена деталь для ассоциации ' + nom_id)
+            return
+
+
         nom = self.tabl_brak.item(self.tabl_brak.currentRow(),0).text().replace('Номер акта:','')
+
         spis_ass = self.ui.label_ass.text().split(';')
         if spis_ass[0]=='':
             spis_ass.pop(0)
@@ -313,7 +437,8 @@ class mywindow(QtWidgets.QMainWindow):
             for i in range(len(spis_brak)):
                 if spis_brak[i][6] == "Категория брака:Неисправимый":
                     if '(Изгот.вновь по МК №' not in spis_brak[i][7]:
-                        spis_itog.append(spis_brak[i])
+                        if F.is_numeric(spis_brak[i][3].replace('Номер наряда:','')) == True:
+                            spis_itog.append(spis_brak[i])
             F.zapoln_wtabl(self, spis_itog, self.tabl_brak, 0, 0, (), (), 200, False, '')
         if tab.currentIndex() == 4: # мк
             tabl_mk = self.ui.table_spis_MK
@@ -351,6 +476,7 @@ class mywindow(QtWidgets.QMainWindow):
         but_add_gl_uzel.setEnabled(True)
         but_add_vhod.setEnabled(True)
         but_udal_uzel.setEnabled(True)
+        self.ui.pushButton_ass_brak_to_mk.setEnabled(True)
 
     def vibor_PY(self,param):
         combo_PY = self.ui.comboBox_PY
@@ -372,6 +498,11 @@ class mywindow(QtWidgets.QMainWindow):
         nk = F.nom_kol_po_imen(tabl_cr_stukt,'Уровень')
         nk_kol_p_z = F.nom_kol_po_imen(tabl_cr_stukt, 'Кол. по заявке')
         nk_kol = F.nom_kol_po_imen(tabl_cr_stukt, 'Количество')
+
+        if nk == None:
+            return
+        if nk_kol_p_z == None:
+            return
 
         min =1000
         for i in range(tabl_cr_stukt.rowCount()):
@@ -523,6 +654,7 @@ class mywindow(QtWidgets.QMainWindow):
         nom_pu = self.ui.comboBox_PY
         nom_pr = self.ui.comboBox_np
         prim = self.ui.lineEdit_prim
+        tab2 = self.ui.tabWidget_2
         if nom_pu.currentText() == "":
             showDialog(self,"Не введен номер ПУ")
             return
@@ -544,9 +676,17 @@ class mywindow(QtWidgets.QMainWindow):
         if flag == 0:
             showDialog(self, 'Не верно выбран номер проекта')
             return
-
-
+        tablrazr_MK = self.ui.table_razr_MK
         tabl = self.ui.table_zayavk
+        if tab2.currentIndex() == 1:
+
+            if tablrazr_MK.rowCount() == 0:
+                return
+        if tab2.currentIndex() == 0:
+
+            if tabl.rowCount() == 0:
+                return
+
         if F.nalich_file(F.tcfg('bd_mk')) == False:
             showDialog(self, 'Не найдена база МК')
             return
@@ -555,18 +695,21 @@ class mywindow(QtWidgets.QMainWindow):
         nom = '0'*(6-len(str(nom)))+str(nom)
         sp_projects = ''
         spisok = F.spisok_iz_wtabl(tabl, '', True)
+
         if self.ui.tabWidget_2.currentIndex() == 0:
             for i in range(1, len(spisok)):
                 if spisok[i][1].startswith(' ') == False:
                     sp_projects = sp_projects + spisok[i][1] + ';'
             sp_projects = sp_projects[0:-1]
+
         osnovanie = self.ui.label_ass.text()
         bd.append([nom,F.date(2),'Закрыта',sp_projects,nom_pu.currentText().strip(),nom_pr.currentText().strip(),prim.text().replace('\n',' '),osnovanie,''])
         F.zap_f(F.tcfg('bd_mk'),bd,"|")
+
         if self.ui.tabWidget_2.currentIndex() == 0:
             spisok = F.spisok_iz_wtabl(tabl, '', True)
         else:
-            spisok = F.spisok_iz_wtabl(self.ui.table_razr_MK , '', True)
+            spisok = F.spisok_iz_wtabl(tablrazr_MK , '', True)
         for i in range(0,len(spisok)):
             for j in range(9,len(spisok[0])):
                 if '\n' in spisok[i][j]:
@@ -575,6 +718,8 @@ class mywindow(QtWidgets.QMainWindow):
             spisok[i] = "|".join(spisok[i])
         F.zap_f(F.scfg('mk_data') + os.sep + str(nom) + '.txt',spisok,"")
         showDialog(self,'маршрутная карта ' + str(nom) + ' успешно сохранена' )
+        if self.ui.tabWidget_2.currentIndex() == 1:
+            self.clear_mk2()
 
 
 
@@ -586,12 +731,16 @@ class mywindow(QtWidgets.QMainWindow):
 
     def create_mk(self):
         tab2 = self.ui.tabWidget_2
+        tabl_cr_stukt = self.ui.table_razr_MK
         if tab2.currentIndex() == 1:
+
+            if tabl_cr_stukt.rowCount() == 0:
+                return
             but_add_gl_uzel = self.ui.pushButton_create_koren
             but_add_vhod = self.ui.pushButton_create_vxodyash
             but_udal_uzel = self.ui.pushButton_create_udalituzel
 
-            tabl_cr_stukt = self.ui.table_razr_MK
+
             rez = self.cr_mk2()
             if rez == False:
                 return
@@ -603,6 +752,9 @@ class mywindow(QtWidgets.QMainWindow):
 
         if tab2.currentIndex() == 0:
             tabl = self.ui.table_zayavk
+
+            if tabl.rowCount() == 0:
+                return
             if tabl.columnCount() > 5:
                 return
             s_vert = []
@@ -654,10 +806,15 @@ class mywindow(QtWidgets.QMainWindow):
                 s_vert = self.dob_etap(s_vert,k[0],k[1],k[2],i,self.ogran)
         s_vert = self.oformlenie_sp_pod_mk(s_vert)
         if tab2.currentIndex() == 1:
+            for i in range(tabl_cr_stukt.columnCount()):
+                tabl_cr_stukt.setColumnHidden(i,False)
             F.zapoln_wtabl(self, s_vert, tabl_cr_stukt, 0, 0, "", "", 200, True, '', 90)
             tabl_cr_stukt.setSelectionBehavior(1)
             self.oformlenie_formi_mk(tabl_cr_stukt, s_vert)
+            self.ui.pushButton_ass_brak_to_mk.setEnabled(True)
         if tab2.currentIndex() == 0:
+            for i in range(tabl.columnCount()):
+                tabl.setColumnHidden(i,False)
             F.zapoln_wtabl(self,s_vert,tabl,0,0,"","",200,True,'',90)
             tabl.setSelectionBehavior(1)
             self.oformlenie_formi_mk(tabl,s_vert)
@@ -669,6 +826,7 @@ class mywindow(QtWidgets.QMainWindow):
                 #    cellinfo = QtWidgets.QTableWidgetItem('')
                 #    tabl.setItem(j,i, cellinfo)
                 F.ust_color_wtab(tabl, j, i, 227, 227, 227)
+
 
                 #tabl.item(j,i).setBackground(QtGui.QColor(227,227,227))
         for i in range(0,11):
@@ -874,18 +1032,20 @@ class mywindow(QtWidgets.QMainWindow):
         tabl = self.ui.table_zayavk
         tree = self.ui.treeWidget
         tab = self.ui.tabWidget
-        if tab.currentIndex() < 2:
-            putt = F.f_dialog_name(self,'Выбрать XML','',"Файлы *.xml")
-            if putt == '':
-                return
-            s=XML.spisok_iz_xml(putt)
-            if vklad.currentIndex() == 0:
-                self.zapoln_tree_spiskom(s)
-                for _ in range(0, 8):
-                    tree.resizeColumnToContents(_)
-            if vklad.currentIndex() == 1:
-                tabl.setSelectionBehavior(0)
-                self.dob_izd(s,putt)
+        if tab.currentIndex() > 2:
+            self.ui.tabWidget.setCurrentIndex(0)
+        putt = F.f_dialog_name(self, 'Выбрать XML', '', "Файлы *.xml")
+        if putt == '':
+            return
+        s = XML.spisok_iz_xml(putt)
+        if vklad.currentIndex() == 0:
+            self.zapoln_tree_spiskom(s)
+            for _ in range(0, 8):
+                tree.resizeColumnToContents(_)
+        if vklad.currentIndex() == 1:
+            tabl.setSelectionBehavior(0)
+            self.dob_izd(s, putt)
+
 
     def nalich_dannih_v_tk(self,n_dse,n_tk,nomer_st):
         tk = F.otkr_f(F.scfg('add_docs')+ os.sep + n_tk +"_"+n_dse+'.txt', False, "|")
