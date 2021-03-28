@@ -162,6 +162,20 @@ class mywindow(QtWidgets.QMainWindow):
     def tabl_brak_dbl_clk(self):
         label = self.ui.label_opis_braka
         strok = self.tabl_brak.currentRow()
+        label_brak = self.ui.label_opis_braka
+        n_k = 4
+        if self.tabl_brak.currentColumn() == n_k:
+            if self.tabl_brak.item(self.tabl_brak.currentRow(), n_k).text().replace('Фото:','') != "":
+                sp_foto = self.tabl_brak.item(self.tabl_brak.currentRow(), n_k).text().split(')(')
+                sp_pap = F.spis_files(F.scfg('foto_brak'))[0][1]
+                for j in range(len(sp_foto)):
+                    sp_foto[j] = sp_foto[j].replace(')', '')
+                    sp_foto[j] = sp_foto[j].replace('(', '')
+                    for i in range(len(sp_pap)):
+                        if F.nalich_file(F.scfg('foto_brak') + os.sep + sp_pap[i] + os.sep + sp_foto[j]) == True:
+                            F.zapyst_file(F.scfg('foto_brak') + os.sep + sp_pap[i] + os.sep + sp_foto[j])
+                return
+            return
         if label == "":
             return
         nom_id = self.naiti_parametr_v_stroke(label.text(), 'ID:')
@@ -170,6 +184,11 @@ class mywindow(QtWidgets.QMainWindow):
             return
         kol_det = self.tabl_brak.item(strok,8).text().replace('Количество:','')
 
+
+        nom_mk_isprav = self.naiti_parametr_v_stroke(label_brak.text(), 'Изгот.вновь по МК:')
+        if nom_mk_isprav != '':
+            F.msgbox(f'ДСЕ уже изготавливается по МК №{nom_mk_isprav}')
+            return
         tree = self.ui.treeWidget
         spis_tree = F.spisok_dreva(tree)
         if spis_tree == []:
@@ -179,15 +198,27 @@ class mywindow(QtWidgets.QMainWindow):
         nom_kol_id = F.nom_kol_po_imen(tree,'ID')
         for i in range(len(spis_tree)):
             if spis_tree[i][nom_kol_id] == nom_id:
-                self.ui.tabWidget.setCurrentIndex(0)
-                rez = F.videlit_tree_nom(tree,i+1)
+                uroven = spis_tree[i][20]
+                rez = F.videlit_tree_nom(tree, i + 1)
                 if rez == False:
-                    F.msgbox('Детальне найдена')
+                    F.msgbox(f'Деталь {spis_tree[j][20]} не найдена')
                     return
                 self.add_v_mk()
+
                 table = self.ui.table_razr_MK
-                table.item(table.rowCount()-1,F.nom_kol_po_imen(table,'Кол. по заявке')).setText(kol_det)
-                table.setCurrentCell(table.rowCount()-1,1)
+                table.item(table.rowCount() - 1, F.nom_kol_po_imen(table, 'Кол. по заявке')).setText(kol_det)
+                table.setCurrentCell(table.rowCount() - 1, 1)
+                for j in range(i+1, len(spis_tree)):
+                    if spis_tree[j][20] > uroven:
+                        rez = F.videlit_tree_nom(tree,i+1)
+                        if rez == False:
+                            F.msgbox(f'Деталь {spis_tree[j][20]} не найдена')
+                            self.ui.tabWidget.setCurrentIndex(0)
+                            return
+                        self.add_v_mk()
+                    else:
+                        break
+
                 return
 
 
@@ -202,6 +233,9 @@ class mywindow(QtWidgets.QMainWindow):
         nom_ID = ""
         if strok == -1:
             return
+        if self.tabl_brak.currentColumn() == 4:
+            return
+        nom_acta = self.tabl_brak.item(strok, 0).text().replace('Номер акта:', '')
         nom_nar = self.tabl_brak.item(strok,3).text().replace('Номер наряда:','')
         spis_nar = F.otkr_f(F.tcfg('Naryad'), False, '|')
         kol_nom_nar = F.nom_kol_po_im_v_shap(spis_nar,'№')
@@ -215,12 +249,14 @@ class mywindow(QtWidgets.QMainWindow):
                 nom_oper = spis_nar[i][kol_nom_oper]
                 break
         if nom_mk == "":
+            F.msgbox(f'Наряд {nom_nar} не найден.')
             return
         if nom_ID == '':
             return
 
         sp_tabl_mk = F.otkr_f(F.scfg('mk_data') + os.sep + nom_mk + '.txt', False, '|')
         if sp_tabl_mk == ['']:
+            F.msgbox(f'Маршрутная карта {nom_mk} не найдена.')
             return
         kol_nom_ID = F.nom_kol_po_im_v_shap(sp_tabl_mk,'ID')
         kol_naim_det = F.nom_kol_po_im_v_shap(sp_tabl_mk,'Наименование')
@@ -230,7 +266,11 @@ class mywindow(QtWidgets.QMainWindow):
                 naim_det = sp_tabl_mk[i][kol_naim_det]
                 nom_det = sp_tabl_mk[i][kol_nom_det]
                 break
-        label.setText('ID:' + nom_ID + '     ДСЕ:' + naim_det + nom_det + '       МК:' + nom_mk + '     № операции:' + nom_oper )
+
+        spis_mk = F.otkr_f(F.tcfg('bd_mk'), False, '|', False, False)
+        nom_izg_vn_mk = F.naiti_v_spis_1_1(spis_mk,F.nom_kol_po_im_v_shap(spis_mk,'Основание'),nom_acta,0,True)
+        label.setText(f'ID:{nom_ID}       ДСЕ:{naim_det.strip()} {nom_det.strip()}      МК:{nom_mk}      '
+                      f'№ операции:{nom_oper}      Изгот.вновь по МК:{nom_izg_vn_mk}')
         return
 
     def del_ass(self):
@@ -450,6 +490,7 @@ class mywindow(QtWidgets.QMainWindow):
 
             F.cvet_cell_wtabl(tabl_mk,'Прогресс','','Завершено')
             F.cvet_cell_wtabl(tabl_mk, 'Статус', '', 'Закрыта')
+            F.cvet_cell_wtabl(tabl_mk, 'Статус', '', 'Открыта',203,176,0,False)
 
             tabl_mk.setCurrentIndex(tmp_poz)
 
