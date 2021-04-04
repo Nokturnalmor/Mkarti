@@ -201,7 +201,7 @@ class mywindow(QtWidgets.QMainWindow):
                 uroven = spis_tree[i][20]
                 rez = F.videlit_tree_nom(tree, i + 1)
                 if rez == False:
-                    F.msgbox(f'Деталь {spis_tree[j][20]} не найдена')
+                    F.msgbox(f'Деталь {spis_tree[i][20]} не найдена')
                     return
                 self.add_v_mk()
 
@@ -804,6 +804,22 @@ class mywindow(QtWidgets.QMainWindow):
             for i in sp_izd:
                 putt = i[0]
                 sp_xml_tmp = XML.spisok_iz_xml(putt)
+                for itm in range(len(sp_xml_tmp)):
+                    for j in range(itm+1,len(sp_xml_tmp)):
+                        if itm < len(sp_xml_tmp)-1:
+                            if sp_xml_tmp[itm][0] == sp_xml_tmp[j][0] and sp_xml_tmp[itm][1] == sp_xml_tmp[j][1] \
+                                    and sp_xml_tmp[itm][20] == sp_xml_tmp[j][20]:
+                                sp_xml_tmp[itm][2] = str(int(sp_xml_tmp[itm][2]) + int(sp_xml_tmp[j][2]))
+                                sp_xml_tmp[j][0] = "deletes" + str(F.time_metka())
+                            else:
+                                break
+                sp_xml_tmp_ = []
+                for itm in range(len(sp_xml_tmp)):
+                    if sp_xml_tmp[itm][0].startswith('deletes') == False:
+                        sp_xml_tmp_.append(sp_xml_tmp[itm])
+                sp_xml_tmp = sp_xml_tmp_
+
+
                 if i[2] == '':
                     showDialog(self,"Не указано кол-во по заявке")
                     return
