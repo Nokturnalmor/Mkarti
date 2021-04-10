@@ -76,6 +76,8 @@ class mywindow(QtWidgets.QMainWindow):
         self.tabl_mk.setSelectionBehavior(1)
         self.tabl_mk.setSelectionMode(1)
         self.tabl_mk.cellChanged[int, int].connect(self.corr_mk)
+        self.tabl_mk.clicked.connect(self.spis_MK_clck)
+
 
         self.tabl_brak = self.ui.table_brak
         F.ust_cvet_videl_tab(self.tabl_brak)
@@ -83,6 +85,9 @@ class mywindow(QtWidgets.QMainWindow):
         self.tabl_brak.setSelectionMode(1)
         self.tabl_brak.clicked.connect(self.click_brak)
         self.tabl_brak.doubleClicked.connect(self.tabl_brak_dbl_clk)
+
+
+
 
         butt_vib_nomen = self.ui.pushButton_ass_nomen_MK
         butt_vib_nomen.clicked.connect(self.ass_dse_to_mk)
@@ -143,6 +148,7 @@ class mywindow(QtWidgets.QMainWindow):
         self.but_del_mk.clicked.connect(self.del_mk)
 
         self.ui.pushButton_clear_label.clicked.connect(self.del_ass)
+        self.ui.pushButton_clear_label.setToolTip('Удалить ассоциации с актами о браке')
 
         tabl = self.ui.table_zayavk
         shapka = ['Файл', 'Изделие', 'Кол-во']
@@ -158,6 +164,15 @@ class mywindow(QtWidgets.QMainWindow):
 
         actionXML = self.ui.action_XML
         actionXML.triggered.connect(self.viborXML)
+
+    def spis_MK_clck(self):
+        param = self.tabl_mk.currentRow()
+        if self.tabl_mk.item(param,F.nom_kol_po_imen(self.tabl_mk,"Статус")).text() == "Открыта":
+            self.ui.pushButton_close_mk.setEnabled(True)
+            self.ui.pushButton_open_mk.setEnabled(False)
+        else:
+            self.ui.pushButton_close_mk.setEnabled(False)
+            self.ui.pushButton_open_mk.setEnabled(True)
 
     def tabl_brak_dbl_clk(self):
         label = self.ui.label_opis_braka
@@ -186,7 +201,7 @@ class mywindow(QtWidgets.QMainWindow):
 
 
         nom_mk_isprav = self.naiti_parametr_v_stroke(label_brak.text(), 'Изгот.вновь по МК:')
-        if nom_mk_isprav != '':
+        if nom_mk_isprav != '' and nom_mk_isprav != 'None':
             F.msgbox(f'ДСЕ уже изготавливается по МК №{nom_mk_isprav}')
             return
         tree = self.ui.treeWidget
@@ -218,7 +233,8 @@ class mywindow(QtWidgets.QMainWindow):
                         self.add_v_mk()
                     else:
                         break
-
+                F.msgbox(
+                    'В случе если основание создание маршрутной карты это БРАК, то необходимо ассоциировать его с МК.')
                 return
 
 
@@ -240,8 +256,17 @@ class mywindow(QtWidgets.QMainWindow):
         spis_nar = F.otkr_f(F.tcfg('Naryad'), False, '|')
         kol_nom_nar = F.nom_kol_po_im_v_shap(spis_nar,'№')
         kol_nom_mk = F.nom_kol_po_im_v_shap(spis_nar,'МК')
+        if kol_nom_mk == None:
+            F.msgbox("Не найдена колонка МК")
+            return
         kol_nom_ID =F.nom_kol_po_im_v_shap(spis_nar,'ID')
+        if kol_nom_mk == None:
+            F.msgbox("Не найдена колонка ID")
+            return
         kol_nom_oper = F.nom_kol_po_im_v_shap(spis_nar,'N операции')
+        if kol_nom_mk == None:
+            F.msgbox("Не найдена колонка N операции")
+            return
         for i in range(len(spis_nar)-1,0,-1):
             if spis_nar[i][kol_nom_nar] == nom_nar:
                 nom_mk = spis_nar[i][kol_nom_mk]
@@ -804,6 +829,9 @@ class mywindow(QtWidgets.QMainWindow):
             for i in sp_izd:
                 putt = i[0]
                 sp_xml_tmp = XML.spisok_iz_xml(putt)
+                if sp_xml_tmp == None:
+                    F.msgbox('Файл не корректный')
+                    return
                 for itm in range(len(sp_xml_tmp)):
                     for j in range(itm+1,len(sp_xml_tmp)):
                         if itm < len(sp_xml_tmp)-1:
@@ -1091,16 +1119,46 @@ class mywindow(QtWidgets.QMainWindow):
         tab = self.ui.tabWidget
         if tab.currentIndex() > 2:
             self.ui.tabWidget.setCurrentIndex(0)
-        putt = F.f_dialog_name(self, 'Выбрать XML', '', "Файлы *.xml")
+
+        if F.nalich_file(F.scfg('bd_mk') + os.sep + 'tmp_putt.txt') == True:
+            tmp_putt = F.otkr_f(F.scfg('bd_mk') + os.sep + 'tmp_putt.txt',False,'')
+        else:
+            tmp_putt=['']
+        putt = F.f_dialog_name(self, 'Выбрать XML', tmp_putt[0], "Файлы *.xml")
         if putt == '':
             return
+
+        arr_tmp_putt = putt.split('/')
+        arr_tmp_putt.pop()
+        tmp_putt = '/'.join(arr_tmp_putt)
+        F.zap_f(F.scfg('bd_mk') + os.sep + 'tmp_putt.txt',[tmp_putt],'')
+
         s = XML.spisok_iz_xml(putt)
+        if s == None:
+            F.msgbox('Файл не корректный')
+            return
+        err_flag = False
+        for i in range(len(s)):
+            if s[i][0] == "" and s[i][1] == "":
+                err_flag = True
+            if  s[i][2] == "" or s[i][7] == "":
+                err_flag = True
+        if err_flag == True:
+            F.msgbox(f'Файл XML {putt} имеет ошибки, работать с ним нельзя!')
         if vklad.currentIndex() == 0:
+            if err_flag == True:
+                self.ui.pushButton_add_v_bd.setEnabled(False)
+                self.ui.pushButton_add_v_MK.setEnabled(False)
+            else:
+                self.ui.pushButton_add_v_bd.setEnabled(True)
+                self.ui.pushButton_add_v_MK.setEnabled(True)
             self.zapoln_tree_spiskom(s)
             for _ in range(0, 8):
                 tree.resizeColumnToContents(_)
         if vklad.currentIndex() == 1:
             tabl.setSelectionBehavior(0)
+            if err_flag == True:
+                return
             self.dob_izd(s, putt)
 
 

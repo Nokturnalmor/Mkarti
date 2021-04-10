@@ -11,6 +11,7 @@ def spisok_iz_xml(putt):
 #doc = etree.parse('P:\\Python\\Mkarti\\КТ.1408182.11 (меньше метизов).xml')
 
 
+
 def base_sp_names(tree):
     s = []
     sp = tree['Root']['Elements']['Element']['Parameters']['Parameter']
@@ -94,6 +95,8 @@ def naidi_child(putt,s,ur):
 def list_tree(tree):
     ur = 0
     s = []
+    if 'Root' not in tree:
+        return
     if type(tree['Root']['Elements']['Element']) == type([]):
         for i in range(0, len(tree['Root']['Elements']['Element'])):
             s.append(oform_strok(tree['Root']['Elements']['Element'][i],ur))
