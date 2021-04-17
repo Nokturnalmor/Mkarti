@@ -134,6 +134,9 @@ class mywindow(QtWidgets.QMainWindow):
         but_add_v_mk = self.ui.pushButton_add_v_MK
         but_add_v_mk.clicked.connect(self.add_v_mk)
 
+        but_add_v_nomenk = self.ui.pushButton_add_v_bd_2
+        but_add_v_nomenk.clicked.connect(self.add_v_nomenkl)
+
         self.but_ass_brak_to_mk = self.ui.pushButton_ass_brak_to_mk
         self.but_ass_brak_to_mk.clicked.connect(self.ass_brak_to_mk)
         self.ui.pushButton_ass_brak_to_mk.setEnabled(False)
@@ -164,6 +167,26 @@ class mywindow(QtWidgets.QMainWindow):
 
         actionXML = self.ui.action_XML
         actionXML.triggered.connect(self.viborXML)
+
+    def add_v_nomenkl(self):
+        nn = self.ui.lineEdit_nom_n
+        naim = self.ui.lineEdit_naim
+        prim = self.ui.lineEdit_primech
+        if naim.text() == "":
+            naim.setFocus()
+            F.msgbox("Не указано наименование")
+            return
+        spis = F.otkr_f(F.tcfg('BD_dse'), False, '|', False, False)
+        kol1 = F.nom_kol_po_im_v_shap(spis,'Номенклатурный номер')
+        kol2 = F.nom_kol_po_im_v_shap(spis, 'Наименование')
+        for i in range(len(spis)):
+            if spis[i][kol1] == nn.text() and spis[i][kol2] == naim.text():
+                F.msgbox(f'ДСЕ {nn.text()} {naim.text()} уже существует')
+                return
+        spis.append([nn.text().upper(),naim.text(),'',prim.text()])
+        F.zap_f(F.tcfg('BD_dse'),spis,"|")
+        self.zapoln_tabl_nomenkl()
+        F.msgbox(f'ДСЕ {nn.text()} {naim.text()} успешно занесена')
 
     def spis_MK_clck(self):
         param = self.tabl_mk.currentRow()
@@ -267,18 +290,23 @@ class mywindow(QtWidgets.QMainWindow):
         if kol_nom_mk == None:
             F.msgbox("Не найдена колонка N операции")
             return
+        flag_nom_nar_naid = False
         for i in range(len(spis_nar)-1,0,-1):
             if spis_nar[i][kol_nom_nar] == nom_nar:
                 nom_mk = spis_nar[i][kol_nom_mk]
                 nom_ID = spis_nar[i][kol_nom_ID]
                 nom_oper = spis_nar[i][kol_nom_oper]
+                flag_nom_nar_naid = True
                 break
-        if nom_mk == "":
+        if flag_nom_nar_naid == False:
             F.msgbox(f'Наряд {nom_nar} не найден.')
             return
-        if nom_ID == '':
+        if nom_mk == "":
+            F.msgbox(f'Номер маршртной карты по наряду {nom_nar} не найден.')
             return
-
+        if nom_ID == '':
+            F.msgbox(f'ID детали по наряду {nom_nar} не найден.')
+            return
         sp_tabl_mk = F.otkr_f(F.scfg('mk_data') + os.sep + nom_mk + '.txt', False, '|')
         if sp_tabl_mk == ['']:
             F.msgbox(f'Маршрутная карта {nom_mk} не найдена.')
@@ -490,12 +518,15 @@ class mywindow(QtWidgets.QMainWindow):
         spis_ass.append(nom)
         self.ui.label_ass.setText(';'.join(spis_ass))
 
+    def zapoln_tabl_nomenkl(self):
+        tabl_nomenk = self.ui.table_nomenkl
+        spis = F.otkr_f(F.tcfg('BD_dse'), False, '|', False, False)
+        F.zapoln_wtabl(self, spis, tabl_nomenk, 0, 0, (), (), 200, True, '', max_vis_row=20)
+
     def tab_click(self):
         tab = self.ui.tabWidget
         if tab.currentIndex() == 2: # номенклатура
-            tabl_nomenk = self.ui.table_nomenkl
-            spis = F.otkr_f(F.tcfg('BD_dse'), False, '|', False, False)
-            F.zapoln_wtabl(self, spis, tabl_nomenk, 0, 0, (), (), 200, True, '')
+            self.zapoln_tabl_nomenkl()
         if tab.currentIndex() == 3: # брак
             spis_brak = F.otkr_f(F.tcfg('BDact'), False, '|', False, False)
             spis_itog = []
@@ -647,6 +678,8 @@ class mywindow(QtWidgets.QMainWindow):
 
         naim = F.znach_vib_strok_po_kol(tabl_nomenk,'Наименование')
         nn = F.znach_vib_strok_po_kol(tabl_nomenk,'Номенклатурный номер')
+        if nn == False or naim == False:
+            return
         F.zapis_znach_vib_strok_po_kol(tabl_cr_stukt,'Наименование',naim)
         F.zapis_znach_vib_strok_po_kol(tabl_cr_stukt, 'Обозначение', nn)
 
