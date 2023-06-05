@@ -5,7 +5,7 @@ import project_cust_38.Cust_Qt as CQT
 import project_cust_38.Cust_mes as CMS
 import project_cust_38.Cust_Functions as F
 from copy import deepcopy
-import project_cust_38.operacii
+import project_cust_38.operacii as operacii
 
 class mywindow2(QtWidgets.QDialog):  # диалоговое окно
     def __init__(self, parent):

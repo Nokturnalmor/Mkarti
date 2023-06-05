@@ -23,6 +23,8 @@ import jsonlines
 import Selector_conversation as SLCT
 import calculate_vo as CVO
 import kal_plan as KPL
+import gui_kal_plan as GKPL
+import gui_vol_plan as GVKPL
 import ERP_conn as ERP
 
 
@@ -32,10 +34,10 @@ class mywindow(QtWidgets.QMainWindow):
         super(mywindow, self).__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.versia = '1.7.7'
+        self.versia = '1.7.92'
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.setWindowTitle("Создание маршрутных карт")
-        self.showMaximized()
+        #self.showMaximized()
         #F.test_path()
         # self.resized.connect(self.widths)
         self.ip_srv = ''
@@ -143,13 +145,25 @@ class mywindow(QtWidgets.QMainWindow):
         tabl.setHorizontalHeaderLabels(shapka)
         self.ui.tbl_kal_pl.itemSelectionChanged.connect(lambda  x=self, y=self.ui.tbl_kal_pl: KPL.clck_tbl_kal_pl_tbl(x,y))
         self.ui.tbl_preview.itemSelectionChanged.connect(lambda x=self, y=self.ui.tbl_preview: KPL.clck_tbl_preview(x, y))
+        self.ui.tbl_pl_gaf.itemSelectionChanged.connect(
+            lambda x=self, y=self.ui.tbl_pl_gaf: KPL.clck_tbl_preview(x, y))
         #self.ui.tbl_kal_pl.clicked.connect(lambda  x=self: KPL.clck_tbl(x))
         self.ui.tbl_rc.itemSelectionChanged.connect(self.clck_tbl_rc)
         self.ui.tbl_rc.clicked.connect(self.clck_tbl_rc)
         self.ui.tbl_rc.doubleClicked.connect(lambda _, x=self: IND.select_schema_dbl_clk(x))
         self.ui.tbl_pl_add_poz.doubleClicked.connect(lambda: KPL.dbl_clk_tbl_add_poz(self))
-
-
+        self.ui.tbl_tabeli.doubleClicked.connect(lambda: IND.set_old_val(self))
+        self.ui.tbl_tabeli.clicked.connect(lambda: IND.set_tooltip_val(self))
+        self.ui.tbl_preview.doubleClicked.connect(lambda: KPL.select_field_from_kgui(self))
+        self.ui.tbl_pl_gaf.horizontalScrollBar().valueChanged.connect(
+            self.ui.tbl_pl_gaf_filtr.horizontalScrollBar().setValue)
+        self.ui.tbl_pl_gaf.horizontalScrollBar().valueChanged.connect(
+            self.ui.tbl_pl_gaf_svod.horizontalScrollBar().setValue)
+        self.ui.tbl_kal_pl.horizontalScrollBar().valueChanged.connect(
+            self.ui.tbl_filtr_kal_pl.horizontalScrollBar().setValue)
+        self.ui.tbl_pl_gaf_svod.clicked.connect(lambda: GVKPL.set_tooltip_val(self))
+        self.ui.tbl_pl_gaf_svod.doubleClicked.connect(lambda: GVKPL.dbl_clk_svod_select_etap(self))
+        self.ui.tbl_pl_gaf.doubleClicked.connect(lambda: GVKPL.dbl_clk_select_etap(self))
         # =================================================================
         # ==============BUTTON==========================================
 
@@ -254,6 +268,10 @@ class mywindow(QtWidgets.QMainWindow):
         self.ui.btn_kal_pl_left.clicked.connect(lambda _, x=self: KPL.kal_pl_left(x))
         self.ui.btn_kal_pl_right.clicked.connect(lambda _, x=self: KPL.kal_pl_right(x))
         self.ui.btn_fdate_res_erp.clicked.connect(self.clk_fdate_res_erp)
+        self.ui.btn_edit_local_gant_left.clicked.connect(lambda: GKPL.move_left(self))
+        self.ui.btn_edit_local_gant_right.clicked.connect(lambda: GKPL.move_right(self))
+        self.ui.btn_show_svod.clicked.connect(lambda: GVKPL.show_svod(self))
+        self.ui.btn_pl_tabel.clicked.connect(lambda: KPL.show_tabel(self))
         # =================================================================
         # ===========COMBOBOX===========================================
 
@@ -291,6 +309,14 @@ class mywindow(QtWidgets.QMainWindow):
         self.ui.lineEdit_primech.textEdited.connect(self.poisk_nn)
 
         # =================================================================
+        # =================SLIDER==========================================
+        self.ui.sl_mash_local.valueChanged[int].connect(self.sl_mash_change)
+
+        # =================================================================
+
+
+
+
         # ========================ACTIONS=================================
 
         actionXML = self.ui.action_XML
@@ -304,8 +330,10 @@ class mywindow(QtWidgets.QMainWindow):
 
         action_json = self.ui.action_JSON
         action_json.triggered.connect(self.export_json)
+
         action_json_Excel = self.ui.action_JSON_Excel
         action_json_Excel.triggered.connect(self.export_json_Excel)
+
         self.ui.actionexcel.triggered.connect(self.export_table)
         self.ui.action_txt.triggered.connect(self.export_table_txt)
         self.ui.action_res_ERP.triggered.connect(lambda _, x=self: EXPD.export_res_erp(x))
@@ -451,9 +479,22 @@ class mywindow(QtWidgets.QMainWindow):
 
 
     def keyReleaseEvent(self, e):
+        if e.key() == QtCore.Qt.Key_F11:
+            if self.isFullScreen():
+                self.showNormal()
+            else:
+                self.showFullScreen()
+
         if self.ui.tbl_tabeli.hasFocus():
             if e.key() == 86 and e.modifiers() == QtCore.Qt.ControlModifier:
                 IND.load_tabel_from_bufer(self)
+        if self.ui.tbl_pl_gaf_filtr.hasFocus():
+            if e.key() == 16777220:
+                CMS.primenit_filtr(self, self.ui.tbl_pl_gaf_filtr, self.ui.tbl_pl_gaf)
+                self.ui.tbl_pl_gaf.setRowHidden(0, True)
+                self.ui.tbl_pl_gaf.setRowHidden(1, True)
+                GVKPL.load_svod(self)
+
         if self.ui.tbl_filtr_kal_pl.hasFocus():
             if e.key() == 16777220:
                 CMS.primenit_filtr(self, self.ui.tbl_filtr_kal_pl, self.ui.tbl_kal_pl)
@@ -617,10 +658,13 @@ class mywindow(QtWidgets.QMainWindow):
             SLCT.load_table_add(self)
         if tab.tabText(ind) == 'Объемно-календарное планирование':
             self.kpl_mode = 0
-            self.DICT_CLD = CMS.DICT_CLD(self.db_users)
+            self.DICT_CLD = CMS.DICT_CLD_KPLAN(self.db_kplan)
             self.DICT_PODR = F.raskrit_dict(CSQ.zapros(self.db_kplan,"""SELECT * FROM podrazdel""",rez_dict=True),'Имя')
             #self.LIST_ETAPS = [ _ for _ in CSQ.spis_tablic(self.db_kplan) if 'пл_' in _ ]
             self.list_tbl_info = []
+            self.edit_tabel_mode = False
+            if "val_masht" not in dir(self):
+                self.val_masht = self.ui.sl_mash_local.value()
             KPL.load_gui(self)
 
 
@@ -2756,12 +2800,12 @@ class mywindow(QtWidgets.QMainWindow):
                     if tabl_cr_stukt.item(j, nk_kol).text() == "":
                         CQT.msgbox(f'В колонке {nk_kol} не число')
                         return
-                    kol_ = int(tabl_cr_stukt.item(j, nk_kol).text())
+                    kol_ = int(F.valm(tabl_cr_stukt.item(j, nk_kol).text()))
                     for k in range(j - 1, -1, -1):
                         if int(tabl_cr_stukt.item(k, nk).text()) > nach_ur:
                             break
                         if int(tabl_cr_stukt.item(k, nk).text()) < nach_ur:
-                            kol_ *= int(tabl_cr_stukt.item(k, nk_kol).text())
+                            kol_ *= int(F.valm(tabl_cr_stukt.item(k, nk_kol).text()))
                             nach_ur = int(tabl_cr_stukt.item(k, nk).text())
                         if int(tabl_cr_stukt.item(k, nk).text()) == 0:
                             break
@@ -3021,16 +3065,20 @@ class mywindow(QtWidgets.QMainWindow):
             naim = s[i][nk_naim].strip()
             nn = s[i][nk_nn].strip()
             summ = 0
+            if type(F.valm(s[i][nk_kol])) == float:
+                if F.valm(s[i][nk_kol]).is_integer():
+                    s[i][nk_kol] = int(F.valm(s[i][nk_kol]))
             koef = self.kol_v_uzel(s, i, nk_naim, nk_kol)
-            if type(F.valm(s[i][nk_kol])) == type(1.1):
-                CQT.msgbox(f'{s[i][nk_naim]} {s[i][nk_nn]} занесен как расходник, обратиться к технологу')
-                CQT.statusbar_text(self)
-                return
-            s[i][nk_kol_summ] = koef * kol_po_zayav * int(s[i][nk_kol])
+            if type(F.valm(s[i][nk_kol])) == float:
+                if not F.valm(s[i][nk_kol]).is_integer():
+                    CQT.msgbox(f'{s[i][nk_naim]} {s[i][nk_nn]} по количеству занесен как расходник, обратиться к технологу')
+                    CQT.statusbar_text(self)
+                    return
+            s[i][nk_kol_summ] = koef * kol_po_zayav * int(F.valm(s[i][nk_kol]))
             for j in range(1, len(s)):
                 if s[j][nk_naim].strip() == naim and s[j][nk_nn].strip() == nn:
                     koef = self.kol_v_uzel(s, j, nk_naim, nk_kol)
-                    summ += int(s[j][nk_kol]) * koef
+                    summ +=int(F.valm(s[j][nk_kol])) * koef
             s[i][nk_kol_izd] = str(summ) + ' (' + str(summ * kol_po_zayav) + ')'
         return s
 
@@ -3975,10 +4023,12 @@ class mywindow(QtWidgets.QMainWindow):
         zapros = f'''SELECT * FROM nomen WHERE П5 == "1" '''
         nomenklatura = CSQ.zapros(self.bd_nomen, zapros)
         DICT_NN_NTK = CMS.load_dict_dse(self.db_dse)
-        conn, cur = CSQ.connect_bd(self.bd_files)
+
         zapros = f""" SELECT Пномер, file_name FROM t_kards"""
-        query = CSQ.zapros(self.bd_files, zapros, conn, shapka=True, rez_dict=True)
-        CSQ.close_bd(conn, cur)
+        query = CSQ.zapros(self.bd_files, zapros, '', shapka=True, rez_dict=True)
+        if query == False:
+            CQT.msgbox(f'ОШИбка получения данных файлов с БД')
+            return
         DICT_doc_reestr = F.raskrit_dict(query, 'file_name')
 
         for i in range(len(spisok)):
@@ -4007,25 +4057,29 @@ class mywindow(QtWidgets.QMainWindow):
                 nom_tk = query_dse["Номер_техкарты"]
                 flag_bd = 1
                 if nom_tk != '':
-                    tk = F.otkr_f(F.scfg('add_docs') + os.sep + nom_tk + "_" + nn + '.txt', False, separ='|',
-                                  pickl=True)
-                    flag_tk = 1
-                    if self.nalich_dannih_v_tk(tk, 4,nomenklatura=nomenklatura, DICT_doc_reestr=DICT_doc_reestr) == True:
-                        flag_marsh = 1
-                    if self.nalich_dannih_v_tk(tk, 6,nomenklatura=nomenklatura, DICT_doc_reestr=DICT_doc_reestr) == True and \
-                            self.nalich_dannih_v_tk(tk, 7,nomenklatura=nomenklatura, DICT_doc_reestr=DICT_doc_reestr) == True:
-                        flag_vrema = 1
-                    if self.nalich_dannih_v_tk(tk, 0,nomenklatura=nomenklatura, DICT_doc_reestr=DICT_doc_reestr) == True:
-                        flag_mat = 1
-                    rez = self.nalich_dannih_v_tk(tk, 4, conn='',nomenklatura=nomenklatura, DICT_doc_reestr=DICT_doc_reestr)
-                    if rez == 'rc':
-                        flag_rc = 0
-                    if rez == 'dxf':
-                        flag_dxf = 0
-                    if rez == 'seg':
-                        flag_seg = 0
-                    if rez == 'docs':
-                        flag_docs = 0
+                    try:
+                        tk = F.otkr_f(F.scfg('add_docs') + os.sep + nom_tk + "_" + nn + '.txt', False, separ='|',
+                                      pickl=True)
+                        flag_tk = 1
+                        if self.nalich_dannih_v_tk(tk, 4,nomenklatura=nomenklatura, DICT_doc_reestr=DICT_doc_reestr) == True:
+                            flag_marsh = 1
+                        if self.nalich_dannih_v_tk(tk, 6,nomenklatura=nomenklatura, DICT_doc_reestr=DICT_doc_reestr) == True and \
+                                self.nalich_dannih_v_tk(tk, 7,nomenklatura=nomenklatura, DICT_doc_reestr=DICT_doc_reestr) == True:
+                            flag_vrema = 1
+                        if self.nalich_dannih_v_tk(tk, 0,nomenklatura=nomenklatura, DICT_doc_reestr=DICT_doc_reestr) == True:
+                            flag_mat = 1
+                        rez = self.nalich_dannih_v_tk(tk, 4, conn='',nomenklatura=nomenklatura, DICT_doc_reestr=DICT_doc_reestr)
+                        if rez == 'rc':
+                            flag_rc = 0
+                        if rez == 'dxf':
+                            flag_dxf = 0
+                        if rez == 'seg':
+                            flag_seg = 0
+                        if rez == 'docs':
+                            flag_docs = 0
+                    except:
+                        CQT.msgbox(f'Что то не то с ТК {nom_tk}')
+                        return
             if flag_bd == 0:
                 s_bd.append('нет в базе ' + " " + nn + ' ' + ima)
             if flag_tk == 0:
@@ -4209,6 +4263,15 @@ class mywindow(QtWidgets.QMainWindow):
                F.user_name(), spis[1], spis[7], spis[0]]
         CMS.btn_oyp_add_project(self, [rez])
 
+
+    def sl_mash_change(self, val):
+        self.val_masht = val
+        if self.kpl_mode == 0:
+            GKPL.oforml_table(self,self.ui.tbl_preview)
+        else:
+            GKPL.oforml_table(self, self.ui.tbl_pl_gaf, self.ui.tbl_pl_gaf_filtr)
+            GVKPL.load_svod(self)
+
 app = QtWidgets.QApplication([])
 
 myappid = 'Powerz.BAG.SustControlWork.0.0.0'  # !!!
@@ -4225,7 +4288,7 @@ if CMS.kontrol_ver(application.versia,'МКарты') == False:
     quit()
 # =============================================================
 
-application.show()
+application.showMaximized()
 
 sys.exit(app.exec())
 # pyinstaller.exe --onefile --icon=1.ico --noconsole MKart.py

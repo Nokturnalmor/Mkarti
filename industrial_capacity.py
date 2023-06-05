@@ -7,31 +7,45 @@ from PyQt5.QtCore import Qt
 from pathlib import Path
 from PyQt5.QtGui import QPainter, QBrush, QPen, QPixmap, QColor
 import project_cust_38.Cust_QtGui as CGUI
+from copy import deepcopy
 
-def load_tabel_in_db(self):
+def update_tabel_in_db(self,write):
+    if write == False:
+        self.dict_zamen_tabel_update = dict()
+    list_of_tabel = CQT.spisok_iz_wtabl(self.ui.tbl_tabeli, sep='', shapka=True, rez_dict=True)
+    name_tbl_db = F.datetostr(F.strtodate(self.ui.cmb_tabeli.currentText().split(' ')[0], '%d.%m.%Y'), 'mtdz_%Y_%m_%d')
+    CSQ.zapros(self.db_users, f"""delete from {name_tbl_db} where Пномер not in 
+    (    select  min(Пномер)   from   {name_tbl_db}    group by  ФИО  )""")
+    tabel_db = CSQ.zapros(self.db_users, f"""SELECT * FROM {name_tbl_db}""", shapka=True, rez_dict=True)
+    change_count = []
+    for i, item in enumerate(list_of_tabel):
+        flag_naid = False
+        for item_db in tabel_db:
+            if item['ФИО'] == ' '.join(item_db['ФИО'].split(' ')[:3]):
+                flag_naid = True
+                change_count = compare_user(self, item, item_db, name_tbl_db, item_db['ФИО'], change_count,i,write)
+        if flag_naid == False:
+            CQT.msgbox(f'Не найден {item["ФИО"]} в МЕС, нужно перезагрузить сотрудников через рейтинг.')
+    return change_count
+
+def load_tabel_in_db(self,write = True):
     if not check_load_tabel_in_db(self):
         return
     if not CQT.msgboxgYN(f'Точно обновить таблицу на {self.ui.cmb_tabeli.currentText()}?'):
         return
     if not CMS.user_access(self.bd_naryad,'update_tabel',F.user_name(),'Нет прав'):
         return
-    list_of_tabel  = CQT.spisok_iz_wtabl(self.ui.tbl_tabeli,sep='',shapka=True,rez_dict=True)
-    name_tbl_db = F.datetostr(F.strtodate(self.ui.cmb_tabeli.currentText().split(' ')[0], '%d.%m.%Y'), 'mtdz_%Y_%m_%d')
-    tabel_db = CSQ.zapros(self.db_users,f"""SELECT * FROM {name_tbl_db}""",shapka=True,rez_dict=True)
-    change_count = 0
-    for item in list_of_tabel:
-        flag_naid = False
-        for item_db in tabel_db:
-            if item['ФИО'] ==  ' '.join(item_db['ФИО'].split(' ')[:3]):
-                flag_naid = True
-                change_count = compare_user(self, item, item_db, name_tbl_db, item_db['ФИО'],change_count)
-        if flag_naid == False:
-            CQT.msgbox(f'Не найден {item["ФИО"]} в МЕС, нужно перезагрузить сотрудников через рейтинг.')
-    CQT.msgbox(f'Обновлено успешно {change_count} изменений')
+    change_count = update_tabel_in_db(self,write=write)
+    str_change = "\n".join(change_count)
+    CQT.clear_tbl(self.ui.tbl_tabeli)
+    CQT.clear_tbl(self.ui.tbl_tabeli_filtr)
+    CQT.msgbox(f'Обновлено успешно {len(change_count)} изменений: \n\n {str_change}')
 
 
-def compare_user(self, item, item_db, name_tbl, fio,change_count):
+def compare_user(self, item, item_db, name_tbl, fio,change_count, i, write):
+    nom_col = -1
     for day in item.keys():
+        nom_col+=1
         if day not in ('ФИО','ИТОГ'):
             for dat_db in item_db.keys():
                 if F.is_date(dat_db,'d_%Y_%m_%d'):
@@ -42,11 +56,21 @@ def compare_user(self, item, item_db, name_tbl, fio,change_count):
                         else:
                             item[day] = 0
                         if item[day] != item_db[dat_db]:
-                            rez = CSQ.zapros(self.db_users,f"""UPDATE {name_tbl} SET {dat_db} = {item[day]} WHERE ФИО == '{fio}';""")
-                            change_count+=1
-                            if rez == None:
-                                CQT.msgbox(f'ОШибка обновления попробуй позже')
-                                return
+                            if write:
+                                rez = CSQ.zapros(self.db_users,f"""UPDATE {name_tbl} SET {dat_db} = {item[day]} WHERE ФИО == '{fio}';""")
+                                if rez == None:
+                                    CQT.msgbox(f'ОШибка обновления попробуй позже')
+                                    return
+                                change_count.append(f'{dat_db} {fio} было {item_db[dat_db]}, стало {item[day]}')
+                            else:
+                                old_theme = deepcopy(self.ui.tbl_tabeli.item(i, nom_col).background().color())
+                                new_theme = deepcopy(QColor(240,100,100))
+                                tmp_dict = {'old':item_db[dat_db],"new":item[day],
+                                            'old_theme':old_theme, 'new_theme': new_theme}
+                                self.dict_zamen_tabel_update[f'{i},{nom_col}'] = tmp_dict
+                                CQT.ust_color_wtab(self.ui.tbl_tabeli,i,nom_col,240,100,100)
+                                self.dict_zamen_tabel_update[f'{i},{nom_col}']['new_theme'] = QColor(240,100,100)
+
     return change_count
 
 
@@ -105,6 +129,10 @@ def add_list_of_months_to_cmb(self):
 
 @CQT.onerror
 def load_tabel_from_bufer(self):
+    if self.ui.cmb_tabeli.currentText() == '':
+        CQT.migat_obj(self,2,self.ui.cmb_tabeli,f'Не выбран месяц')
+        return
+
     list = load_from_bufer()
     if list == None:
         return
@@ -135,6 +163,7 @@ def load_tabel_from_bufer(self):
                     index += 1
     oform_tabel_to_table(self,dict_users)
     CMS.zapolnit_filtr(self,self.ui.tbl_tabeli_filtr,self.ui.tbl_tabeli)
+    update_tabel_in_db(self, write=False)
 
 
 def oform_tabel_to_table(self, dict_users: dict):
@@ -161,7 +190,8 @@ def oform_tabel_to_table(self, dict_users: dict):
                     summ += F.valm(dict_users[user][day])
             else:
                 rez[-1].append(0)
-    CQT.zapoln_wtabl(self, rez, self.ui.tbl_tabeli, separ='', isp_shapka=True, ogr_maxshir_kol=600,min_shir_col=60)
+
+    CQT.zapoln_wtabl(self, rez, self.ui.tbl_tabeli, separ='', isp_shapka=True, ogr_maxshir_kol=600,min_shir_col=60,set_editeble_col_nomera={'*'})
     for i in range(self.ui.tbl_tabeli.rowCount()):
         for j in range(1, self.ui.tbl_tabeli.columnCount()):
             if not F.is_numeric(self.ui.tbl_tabeli.item(i, j).text()):
@@ -591,6 +621,35 @@ def select_fio(self, text,  row, col):
         pnom_emploe = self.DICT_EMPLOEE_FULL[sel_fio]['Пномер']
     CSQ.zapros(self.db_users, f"""UPDATE rab_mesta SET {nk_fio} = {pnom_emploe} WHERE Пномер = {pnom}""", shapka=False)
     CSQ.close_bd(conn)
+
+def set_tooltip_val(self):
+    r = self.ui.tbl_tabeli.currentRow()
+    c = self.ui.tbl_tabeli.currentColumn()
+    key = f'{r},{c}'
+    if key not in self.dict_zamen_tabel_update:
+        self.ui.tbl_tabeli.setToolTip('')
+        return
+    old = self.dict_zamen_tabel_update[key]['old']
+    new = self.dict_zamen_tabel_update[key]['new']
+    self.ui.tbl_tabeli.setToolTip(f'Было: {old}, Стало: {new}')
+def set_old_val(self):
+    r = self.ui.tbl_tabeli.currentRow()
+    c = self.ui.tbl_tabeli.currentColumn()
+    key = f'{r},{c}'
+    if key not in self.dict_zamen_tabel_update:
+        CQT.msgbox(f'Ошибка значений')
+        return
+    old = str(self.dict_zamen_tabel_update[key]['old'])
+    new = str(self.dict_zamen_tabel_update[key]['new'])
+    old_theme = self.dict_zamen_tabel_update[key]['old_theme']
+    new_theme = self.dict_zamen_tabel_update[key]['new_theme']
+    if self.ui.tbl_tabeli.item(r,c).text() == old:
+        self.ui.tbl_tabeli.item(r, c).setText(new)
+        self.ui.tbl_tabeli.item(r, c).setBackground(new_theme)
+    else:
+        self.ui.tbl_tabeli.item(r, c).setText(old)
+        self.ui.tbl_tabeli.item(r, c).setBackground(old_theme)
+
 
 
 def select_schema_dbl_clk(self):

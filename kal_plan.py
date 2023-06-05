@@ -6,6 +6,7 @@ import project_cust_38.Cust_Qt as CQT
 import project_cust_38.Cust_mes as CMS
 from PyQt5.QtCore import QDate
 import gui_kal_plan as GPL
+import gui_vol_plan as VPL
 
 
 LIST_FREEZE_FIELDS = ['plan.Пномер','plan.Направление_деятельности','plan.local_graf']
@@ -20,7 +21,7 @@ def select_row(self):
 def load_gui(self):
     show_fr(self)
     load_table_db(self)
-    self.kpl_mode = 0
+    self.kpl_mode = 0#объемный выключен
 
 def btn_pl_add_poz_click(self):
     if self.regim == '':
@@ -32,10 +33,12 @@ def btn_pl_add_poz_click(self):
         self.regim = ''
 
 def btn_pl_mode(self):
-    if self.kpl_mode == 0:
-        show_fr(self,graf=1)
-        self.kpl_mode = 1
-        GPL.load_tbl_gant(self)
+    if self.kpl_mode == 0:#объемный выключен
+        show_fr(self,graf=1)#объемный включаем
+        self.kpl_mode = 1#объемный включен
+
+        VPL.load_tbl_gant(self)#объемный загрузка
+
     else:
         load_gui(self)
 
@@ -175,82 +178,101 @@ def load_tbl_edit_poz(self):
     CQT.clear_tbl(self.ui.tbl_pl_add_poz)
 
 def select_etap_edit(self):
-    podr = self.ui.cmb_etap.currentText()
-    tbl_pl = self.ui.tbl_kal_pl
-    row = tbl_pl.currentRow()
-    if row == None or row == -1:
-        return
-    if podr == "":
-        CQT.clear_tbl(self.ui.tbl_pl_add_poz)
-        return
-    name_field = 'НомПл'
-    if podr == "plan":
-        name_field = 'Пномер'
-    nk_pnom = int(CQT.nom_kol_po_imen(tbl_pl,'plan.Пномер'))
-    pnom = tbl_pl.item(row,nk_pnom).text()
-    list_itog = get_line_to_edit_podr(self, pnom)
-    CQT.fill_wtabl(list_itog, self.ui.tbl_pl_add_poz,auto_type=False)
-    for field in LIST_HIDE_FIELDS:
-        if field.split('.')[0] == podr:
-            nk = CQT.nom_kol_po_imen(self.ui.tbl_pl_add_poz,field.split('.')[1])
-            if nk != None:
-                self.ui.tbl_pl_add_poz.setColumnHidden(nk,True)
-    oform_table_editeble(self, self.ui.tbl_pl_add_poz,name_field)
-    if podr == 'plan':
-        list_napr_deyat = []
-        for key in self.DICT_NAPR_DEYAT.keys():
-            list_napr_deyat.append(self.DICT_NAPR_DEYAT[key]['Имя'])
-        nk_napr_deyat = CQT.nom_kol_po_imen(self.ui.tbl_pl_add_poz, 'Направление_деятельности')
-        CQT.add_combobox(self, self.ui.tbl_pl_add_poz, 0, nk_napr_deyat, list_napr_deyat, first_void=False,
-                         conn_func=select_napr_deyat)
-        try:
-            self.ui.tbl_pl_add_poz.cellWidget(0, nk_napr_deyat).setCurrentText(
-            self.DICT_NAPR_DEYAT[int(self.ui.tbl_pl_add_poz.item(0, nk_napr_deyat).text())]['Имя'])
-        except:
-            pass
-        list_status = []
-        for key in self.DICT_STATUS_POZ.keys():
-            list_status.append(self.DICT_STATUS_POZ[key]['Имя'])
-        nk_status = CQT.nom_kol_po_imen(self.ui.tbl_pl_add_poz, 'Статус')
-        CQT.add_combobox(self, self.ui.tbl_pl_add_poz, 0, nk_status, list_status, first_void=False,
-                         conn_func=select_status)
-        try:
-            self.ui.tbl_pl_add_poz.cellWidget(0, nk_status).setCurrentText(
-                self.DICT_STATUS_POZ[int(self.ui.tbl_pl_add_poz.item(0, nk_status).text())]['Имя'])
-        except:
-            pass
+    def edit_tabel(self):
+        month = self.ui.cmb_etap.currentText()
+        if month == '':
+            return
+        list_month = CSQ.zapros(self.db_kplan,f"""SELECT * FROM {month}""")
+        set_editeble_columns = set()
+        for i in range(len(list_month[0])):
+            if F.is_date(list_month[0][i],"d_%Y_%m_%d"):
+                set_editeble_columns.add(i)
+        CQT.fill_wtabl(list_month,self.ui.tbl_pl_add_poz,set_editeble_col_nomera = set_editeble_columns,colorful_edit=True)
 
-        list_etapi_erp = []
-        for key in self.DICT_STATUS_ETAPI_ERP.keys():
-            list_etapi_erp.append(self.DICT_STATUS_ETAPI_ERP[key]['Имя'])
-        nk_etapi_erp = CQT.nom_kol_po_imen(self.ui.tbl_pl_add_poz, 'Этапы_ЕРП')
-        CQT.add_combobox(self, self.ui.tbl_pl_add_poz, 0, nk_etapi_erp, list_etapi_erp, first_void=False,
-                         conn_func=select_etapi_erp)
-        try:
-            self.ui.tbl_pl_add_poz.cellWidget(0, nk_etapi_erp).setCurrentText(
-                self.DICT_STATUS_ETAPI_ERP[int(self.ui.tbl_pl_add_poz.item(0, nk_etapi_erp).text())]['Имя'])
-        except:
-            pass
-    if podr == 'пл_топ':
-        list_vid = []
-        for key in self.DICT_VID_PO_NAPR.keys():
-            list_vid.append(self.DICT_VID_PO_NAPR[key]['Имя'])
-        nk_vid = CQT.nom_kol_po_imen(self.ui.tbl_pl_add_poz, 'Вид')
-        CQT.add_combobox(self, self.ui.tbl_pl_add_poz, 0, nk_vid, list_vid, first_void=False,
-                         conn_func=select_vid)
-        list_tech = []
-        for key in self.DICT_EMPLOEE_FULL.keys():
-            if self.DICT_EMPLOEE_FULL[key]['Подразделение'] == 'Технологический отдел Производства':
-                list_tech.append(key)
-        list_tech = sorted(list_tech)
-        nk_otv_tech = CQT.nom_kol_po_imen(self.ui.tbl_pl_add_poz, 'Отв_технолог')
-        CQT.add_combobox(self, self.ui.tbl_pl_add_poz, 0, nk_otv_tech, list_tech, first_void=False,
-                         conn_func=select_tech)
-        try:
-            self.ui.tbl_pl_add_poz.cellWidget(0, nk_vid).setCurrentText(
-            self.DICT_VID_PO_NAPR[int(self.ui.tbl_pl_add_poz.item(0, nk_vid).text())]['Имя'])
-        except:
-            pass
+
+    def edit_etap(self):
+        podr = self.ui.cmb_etap.currentText()
+        tbl_pl = self.ui.tbl_kal_pl
+        row = tbl_pl.currentRow()
+        if row == None or row == -1:
+            return
+        if podr == "":
+            CQT.clear_tbl(self.ui.tbl_pl_add_poz)
+            return
+        name_field = 'НомПл'
+        if podr == "plan":
+            name_field = 'Пномер'
+        nk_pnom = int(CQT.nom_kol_po_imen(tbl_pl, 'plan.Пномер'))
+        pnom = tbl_pl.item(row, nk_pnom).text()
+        list_itog = get_line_to_edit_podr(self, pnom)
+        CQT.fill_wtabl(list_itog, self.ui.tbl_pl_add_poz, auto_type=False)
+        for field in LIST_HIDE_FIELDS:
+            if field.split('.')[0] == podr:
+                nk = CQT.nom_kol_po_imen(self.ui.tbl_pl_add_poz, field.split('.')[1])
+                if nk != None:
+                    self.ui.tbl_pl_add_poz.setColumnHidden(nk, True)
+        oform_table_editeble(self, self.ui.tbl_pl_add_poz, name_field)
+        if podr == 'plan':
+            list_napr_deyat = []
+            for key in self.DICT_NAPR_DEYAT.keys():
+                list_napr_deyat.append(self.DICT_NAPR_DEYAT[key]['Имя'])
+            nk_napr_deyat = CQT.nom_kol_po_imen(self.ui.tbl_pl_add_poz, 'Направление_деятельности')
+            CQT.add_combobox(self, self.ui.tbl_pl_add_poz, 0, nk_napr_deyat, list_napr_deyat, first_void=False,
+                             conn_func=select_napr_deyat)
+            try:
+                self.ui.tbl_pl_add_poz.cellWidget(0, nk_napr_deyat).setCurrentText(
+                    self.DICT_NAPR_DEYAT[int(self.ui.tbl_pl_add_poz.item(0, nk_napr_deyat).text())]['Имя'])
+            except:
+                pass
+            list_status = []
+            for key in self.DICT_STATUS_POZ.keys():
+                list_status.append(self.DICT_STATUS_POZ[key]['Имя'])
+            nk_status = CQT.nom_kol_po_imen(self.ui.tbl_pl_add_poz, 'Статус')
+            CQT.add_combobox(self, self.ui.tbl_pl_add_poz, 0, nk_status, list_status, first_void=False,
+                             conn_func=select_status)
+            try:
+                self.ui.tbl_pl_add_poz.cellWidget(0, nk_status).setCurrentText(
+                    self.DICT_STATUS_POZ[int(self.ui.tbl_pl_add_poz.item(0, nk_status).text())]['Имя'])
+            except:
+                pass
+
+            list_etapi_erp = []
+            for key in self.DICT_STATUS_ETAPI_ERP.keys():
+                list_etapi_erp.append(self.DICT_STATUS_ETAPI_ERP[key]['Имя'])
+            nk_etapi_erp = CQT.nom_kol_po_imen(self.ui.tbl_pl_add_poz, 'Этапы_ЕРП')
+            CQT.add_combobox(self, self.ui.tbl_pl_add_poz, 0, nk_etapi_erp, list_etapi_erp, first_void=False,
+                             conn_func=select_etapi_erp)
+            try:
+                self.ui.tbl_pl_add_poz.cellWidget(0, nk_etapi_erp).setCurrentText(
+                    self.DICT_STATUS_ETAPI_ERP[int(self.ui.tbl_pl_add_poz.item(0, nk_etapi_erp).text())]['Имя'])
+            except:
+                pass
+        if podr == 'пл_топ':
+            list_vid = []
+            for key in self.DICT_VID_PO_NAPR.keys():
+                list_vid.append(self.DICT_VID_PO_NAPR[key]['Имя'])
+            nk_vid = CQT.nom_kol_po_imen(self.ui.tbl_pl_add_poz, 'Вид')
+            CQT.add_combobox(self, self.ui.tbl_pl_add_poz, 0, nk_vid, list_vid, first_void=False,
+                             conn_func=select_vid)
+            list_tech = []
+            for key in self.DICT_EMPLOEE_FULL.keys():
+                if self.DICT_EMPLOEE_FULL[key]['Подразделение'] == 'Технологический отдел Производства':
+                    list_tech.append(key)
+            list_tech = sorted(list_tech)
+            nk_otv_tech = CQT.nom_kol_po_imen(self.ui.tbl_pl_add_poz, 'Отв_технолог')
+            CQT.add_combobox(self, self.ui.tbl_pl_add_poz, 0, nk_otv_tech, list_tech, first_void=False,
+                             conn_func=select_tech)
+            try:
+                self.ui.tbl_pl_add_poz.cellWidget(0, nk_vid).setCurrentText(
+                    self.DICT_VID_PO_NAPR[int(self.ui.tbl_pl_add_poz.item(0, nk_vid).text())]['Имя'])
+            except:
+                pass
+
+    if self.edit_tabel_mode:
+        edit_tabel(self)
+    else:
+        edit_etap(self)
+
 
 
 def clck_cld(self):
@@ -578,6 +600,39 @@ def check_edit_poz(self,old_list):
 
 
 def btn_pl_ok_add_poz_click(self):
+
+    def check_edit_tabel(self):
+        month = self.ui.cmb_etap.currentText()
+        if month == '':
+            return
+        list_month = CSQ.zapros(self.db_kplan, f"""SELECT * FROM {month}""")
+        list_new = CQT.spisok_iz_wtabl(self.ui.tbl_pl_add_poz,'',True)
+        if len(list_month) != len(list_new):
+            CQT.msgbox(f'Что то пошло не так')
+            return
+        if len(list_month[0]) != len(list_new[0]):
+            CQT.msgbox(f'Что то пошло не так')
+            return
+        list_changes = []
+        list_sql = []
+        for i in range(3, len(list_new)):
+            for j in range(3,len(list_new[0])):
+                if list_month[i][j] != list_new[i][j]:
+                    list_changes.append(f'Для {list_month[i][1]} от {list_month[0][j]} было:{list_month[i][j]}, стало:{list_new[i][j]}')
+                    list_sql.append(f"""UPDATE {month} SET {list_month[0][j]} = {list_new[i][j]} WHERE Подразделение = '{list_month[i][1]}'""")
+        if list_changes == []:
+            CQT.msgbox(f'Изменений не найдено')
+            return False
+
+        msg_str = 'Внести изменения?\n\n' + "\n".join(list_changes)
+        if CQT.msgboxgYN(msg=msg_str):
+            return list_sql
+        return False
+    def apply_edit_tabel(self,list_sql):
+        for zapros in list_sql:
+            CSQ.zapros(self.db_kplan,zapros)
+        CQT.msgbox(f'Успешно')
+
     def add_new_poz(self):
         if not check_add_poz(self):
             return
@@ -655,6 +710,10 @@ def btn_pl_ok_add_poz_click(self):
         return True
 
     def save_cnf(self):
+        if 'shift' in  CQT.get_key_modifiers(self):
+            path = 'Config\\fields.pickle'
+            F.udal_file(path)
+            return True
         spis = CQT.spisok_iz_wtabl(self.ui.tbl_pl_add_poz,shapka=True)
         rez_dict = dict()
         for j in range(0,len(spis[-1])):
@@ -670,18 +729,23 @@ def btn_pl_ok_add_poz_click(self):
         F.save_file_pickle(path,rez_dict)
         return True
 
-    rez = None
-    if self.regim == 'add':
-       rez = add_new_poz(self)
-    if self.regim == 'edit':
-        rez = edit_poz(self)
-    if self.regim == 'cnf':
-        rez = save_cnf(self)
-    if rez == None:
-        return
-    self.regim = ''
-    load_table_db(self)
-    show_fr(self)
+    if self.edit_tabel_mode:
+        list_sql = check_edit_tabel(self)
+        if list_sql:
+            apply_edit_tabel(self,list_sql)
+    else:
+        rez = None
+        if self.regim == 'add':
+           rez = add_new_poz(self)
+        if self.regim == 'edit':
+            rez = edit_poz(self)
+        if self.regim == 'cnf':
+            rez = save_cnf(self)
+        if rez == None:
+            return
+        self.regim = ''
+        load_table_db(self)
+        show_fr(self)
 
 def get_line_to_edit_podr(self,pnom):
     podr = self.ui.cmb_etap.currentText()
@@ -702,13 +766,10 @@ def get_line_to_edit_podr(self,pnom):
 def show_fr(self,fr='',graf=0):
     self.ui.btn_kal_pl_left.setHidden(True)
     self.ui.btn_kal_pl_right.setHidden(True)
-    if graf == 0:
+    if graf == 0:#объемный выключаем
         self.ui.fr_pl_graf.setHidden(True)
         self.ui.fr_pl_tables.setHidden(False)
-    else:
-        self.ui.fr_pl_graf.setHidden(False)
-        self.ui.fr_pl_tables.setHidden(True)
-    if graf == 0:
+
         if fr == '':
             self.ui.fr_pl_cal.setHidden(True)
             self.ui.fr_pl_add_poz.setHidden(True)
@@ -721,6 +782,14 @@ def show_fr(self,fr='',graf=0):
             self.ui.fr_pl_cal.setHidden(False)
             self.ui.fr_pl_add_poz.setHidden(False)
             self.ui.fr_pl_etap.setHidden(False)
+
+    else:#объемный включаем
+        self.ui.fr_pl_graf.setHidden(False)
+        self.ui.fr_pl_tables.setHidden(True)
+        self.ui.fr_svod.setHidden(True)
+        self.ui.fr_pl_gaf.setHidden(False)
+
+
 
 
 def check_db(self):
@@ -740,6 +809,19 @@ def dbl_clk_tbl_add_poz(self):
     if current_cell_is_data_type(self.ui.tbl_pl_add_poz):
         CQT.migat_obj(self,2,self.ui.calendarWidget,'Выбрать дату в календаре')
 
+def select_field_from_kgui(self):
+    tbl = self.ui.tbl_preview
+    r = tbl.currentRow()
+    c = tbl.currentColumn()
+    if self.list_tbl_info[r + 1][c] == '':
+        return
+    dict_obj = copy.deepcopy(self.list_tbl_info[r + 1][c])[0]
+    if 'shift' in CQT.get_key_modifiers(self):
+        name_field = dict_obj['Имя_нз'][1]
+    else:
+        name_field = dict_obj['Имя_нз'][0]
+    nk = CQT.nom_kol_po_imen(self.ui.tbl_kal_pl,name_field)
+    self.ui.tbl_kal_pl.setCurrentCell(self.ui.tbl_kal_pl.currentRow(),nk)
 
 
 def create_db(self):
@@ -818,6 +900,8 @@ def load_table_db(self):
         nk_pseudo = CQT.nom_kol_po_imen(tbl,'Псевдоним')
         nk_napr = CQT.nom_kol_po_imen(tbl,'plan.Направление_деятельности')
         nk_nom_pr = CQT.nom_kol_po_imen(tbl,'пл_оуп.№проекта')
+        nk_local_graf = CQT.nom_kol_po_imen(tbl, 'plan.local_graf')
+        self.ui.tbl_kal_pl.setColumnHidden(nk_local_graf, True)
         for i in range(tbl.rowCount()):
             r, g, b = self.DICT_NAPR_DEYAT_NAME[tbl.item(i,nk_napr).text()]['Цвет'].split(';')
             CQT.ust_color_wtab(tbl,i,nk_pseudo,r,g,b)
@@ -835,7 +919,7 @@ def load_table_db(self):
                 self.ui.tbl_kal_pl.setColumnHidden(CQT.nom_kol_po_imen(self.ui.tbl_kal_pl, list_conf[0][i]),True)
             else:
                 self.ui.tbl_kal_pl.setColumnHidden(CQT.nom_kol_po_imen(self.ui.tbl_kal_pl, list_conf[0][i]), False)
-    CMS.zapolnit_filtr(self,self.ui.tbl_filtr_kal_pl,self.ui.tbl_kal_pl)
+    CMS.zapolnit_filtr(self,self.ui.tbl_filtr_kal_pl,self.ui.tbl_kal_pl,hidden_scroll=True)
 
     oforml_table(self)
     CMS.load_column_widths(self,self.ui.tbl_kal_pl)
@@ -848,20 +932,54 @@ def clck_tbl_kal_pl_tbl(self,tbl):
     summ_selct_tbl(self,tbl)
     select_row(self)
 
+def show_tabel(self):
+    if self.ui.fr_pl_add_poz.isHidden():
+        self.edit_tabel_mode = True
+        self.ui.fr_pl_etap.setHidden(False)
+        self.ui.fr_pl_add_poz.setHidden(False)
+        self.ui.tbl_pl_add_poz.setMaximumHeight(370)
+        self.ui.fr_pl_add_poz.setMaximumHeight(470)
+        self.ui.fr_gant_local.setHidden(True)
+        self.ui.cmb_etap.clear()
+        self.ui.tbl_pl_add_poz.clear()
+        list_month = [_ for _ in CSQ.spis_tablic(self.db_kplan) if 'm_cld_' in _]
+        list_month.insert(0,'')
+        self.ui.cmb_etap.addItems(list_month)
+    else:
+        self.ui.fr_pl_add_poz.setHidden(True)
+        self.ui.fr_gant_local.setHidden(False)
+        self.edit_tabel_mode = False
+        self.ui.tbl_pl_add_poz.setMaximumHeight(70)
+        self.ui.fr_pl_add_poz.setMaximumHeight(170)
+        self.ui.tbl_pl_add_poz.clear()
+
 @CQT.onerror
 def clck_tbl_preview(self,tbl):
     summ_selct_tbl(self,tbl)
-    load_info_select_block(self)
+    load_info_select_block(self,tbl)
 
-def load_info_select_block(self):
-    tbl = self.ui.tbl_preview
-    r= tbl.currentRow()
+def load_info_select_block(self,tbl):
+    r = tbl.currentRow()
     c = tbl.currentColumn()
     msg =  self.statusBar().currentMessage()
-    list = self.list_tbl_info[r+1][c]
-    info = str(list)
+    try:
+        if self.list_tbl_info[r+1][c] == '':
+            CQT.statusbar_text(self,'')
+            tbl.setToolTip('')
+    except:
+        return
+    list = copy.deepcopy(self.list_tbl_info[r+1][c])
+    info = ''
+    if type(list) == type([]):
+        tmp = []
+        for item in list:
+            item.pop("Имя_нз",list)
+            tmp.append(str(item))
+        info = ('\n'.join(tmp))
+        tbl.setToolTip(info)
     CQT.statusbar_text(self,
                        f'{msg} |  {info}')
+
 
 
 @CQT.onerror
