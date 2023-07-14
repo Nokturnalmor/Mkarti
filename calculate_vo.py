@@ -30,7 +30,8 @@ class mywindow2(QtWidgets.QDialog):  # диалоговое окно
         self.app_icons()
         self.showMaximized()
         self.dragPos = QtCore.QPoint()
-
+        CQT.load_css(self)
+        CQT.load_icons(self,24)
 
     # вызывается при нажатии кнопки мыши по форме
     @CQT.onerror
@@ -92,14 +93,29 @@ class mywindow2(QtWidgets.QDialog):  # диалоговое окно
 
     def create_mk(self):
         list_vars_vo =CQT.spisok_iz_wtabl(self.ui2.tbl_rez_tk, shapka=True)
-        if list_vars_vo == [[]]:
+        list_mat_vo = CQT.spisok_iz_wtabl(self.ui2.tbl_rez_tk_mat, shapka=True)
+        dict_mat_vo = F.list_to_dict(list_mat_vo)
+        if list_vars_vo == [[]] or list_mat_vo == [[]]:
             return
         for row in list_vars_vo:
             for item in row:
                 if item == 'ERR':
                     CQT.msgbox(f'Ошибки в результатах')
                     return
+        dict_mat = dict()
+        for item in dict_mat_vo:
+            if item['Норма'] == 0:
+                continue
+            key = f"{item['ДСЕ']}${item['Код']}"
+            val ='$'.join([item['НН'],item['Материал'],item['Ед.Изм'],'{:.8f}'.format(round(F.valm(item['Норма']), 8))])
+            if key in dict_mat:
+                dict_mat[key].append(val)
+            else:
+                dict_mat[key] = [val]
+        for key in dict_mat.keys():
+            dict_mat[key] = '{'.join(dict_mat[key])
         self.myparent.list_vars_vo = list_vars_vo
+        self.myparent.dict_mat_vo = dict_mat
         self.hide()
 
     def check_insert_gvars(self,gvars):
@@ -237,7 +253,7 @@ class mywindow2(QtWidgets.QDialog):  # диалоговое окно
             dse = list_struct[i][nk_naim]
             try:
                 if dse in dict_dse:
-                    arr_mass[0] = str(dict_dse[dse])
+                    arr_mass[0] = str(round(dict_dse[dse],3))
                 else:
                     arr_mass[0] = ''
             except:
@@ -575,6 +591,7 @@ class mywindow2(QtWidgets.QDialog):  # диалоговое окно
         self.ui2.btn_load_csv_gl_var.setIcon(QtGui.QIcon(QApplication.style().standardIcon(QStyle.SP_DriveHDIcon)))
         self.ui2.btn_load_csv_gl_var.setIconSize(QtCore.QSize(32, 32))
 
+
 def update_parametrs(self,spis_tk:list,j:int,nn:str):
     nk_mat_tk = 10
     nk_op_tst = 7
@@ -595,6 +612,16 @@ def update_parametrs(self,spis_tk:list,j:int,nn:str):
 
     time = operacii.vremya_tsht(dict_vo[current_row]['Операция'], list_vars)
     list_mat = operacii.materiali(self, dict_vo[current_row]['Операция'], list_vars)
+    #==============ADD OSN MATS±+++++++++++++
+    if current_row in self.dict_mat_vo:
+        list_vsp_mat_tmp = list_mat.split('{')
+        list_osn_mat = self.dict_mat_vo[current_row].split('{')
+        for mat in list_vsp_mat_tmp:
+            if mat != '':
+                list_osn_mat.append(mat)
+        list_mat= '{'.join(list_osn_mat)
+    #+++++++++++++++++++++++++++++
+
     if j < len(spis_tk)-1:
         for i in range(j + 1,len(spis_tk)):
             current_row = "$".join([nn, spis_tk[i][3]])
@@ -610,7 +637,7 @@ def update_parametrs(self,spis_tk:list,j:int,nn:str):
                                 list_vars_pereh[1].append(str(dict_vo[current_row][key]))
 
                     vrema = operacii.vremya_tsht_perehodi(dict_vo[current_row]['Операция'],spis_tk[i][0], list_vars_pereh, list_vars)
-                    #materials = operacii.materiali(self, ima_operacii, arr_tmp)
+                    #materials = operacii.materiali(self, dict_vo[current_row]['Операция'], arr_tmp)
                     time += vrema
                 #for mat in materials:
                 #    list_mat.append(mat)

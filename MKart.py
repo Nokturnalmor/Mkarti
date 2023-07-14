@@ -17,16 +17,42 @@ import project_cust_38.Cust_Excel as CEX
 import project_cust_38.Zamechaniya as ZMCH
 import obespechenie as OBSP
 import industrial_capacity as IND
-#import copy
 import export_docs_mkarts as EXPD
-import jsonlines
 import Selector_conversation as SLCT
 import calculate_vo as CVO
 import kal_plan as KPL
 import gui_kal_plan as GKPL
 import gui_vol_plan as GVKPL
 import ERP_conn as ERP
+import project_cust_38.Cust_b24 as CB24
+from dataclasses import dataclass
 
+@dataclass
+class Data_plan:
+    db_kplan = F.bdcfg('DB_kplan')
+    # ======= KAL PLAN======================
+    NAPR_DEYAT = CSQ.zapros(db_kplan, f"""SELECT * FROM napravl_deyat""", rez_dict=True)
+    DICT_NAPR_DEYAT = F.raskrit_dict(NAPR_DEYAT, 'Пномер')
+    DICT_NAPR_DEYAT_NAME = F.raskrit_dict(NAPR_DEYAT, 'Имя')
+    VID_PO_NAPR = CSQ.zapros(db_kplan, f"""SELECT * FROM Виды_по_напр""", rez_dict=True)
+    DICT_VID_PO_NAPR = F.raskrit_dict(VID_PO_NAPR, 'Пномер')
+    DICT_VID_PO_NAPR_NAME = F.raskrit_dict(VID_PO_NAPR, 'Имя')
+    STATUS_POZ =        CSQ.zapros(db_kplan, f"""SELECT * FROM status_poz""", rez_dict=True)
+    DICT_STATUS_POZ = F.raskrit_dict(STATUS_POZ, 'Пномер')
+    DICT_STATUS_POZ_NAME = F.raskrit_dict(STATUS_POZ, 'Имя')
+    STATUS_ETAPI_ERP =        CSQ.zapros(db_kplan, f"""SELECT * FROM status_etapi_erp""", rez_dict=True)
+    DICT_STATUS_ETAPI_ERP = F.raskrit_dict(STATUS_ETAPI_ERP, 'Пномер')
+    DICT_STATUS_ETAPI_ERP_NAME = F.raskrit_dict(STATUS_ETAPI_ERP, 'Имя')
+
+    DICT_NAPRAVLENIE = F.raskrit_dict(
+        CSQ.zapros(db_kplan, f"""SELECT * FROM napravlenie""", rez_dict=True), 'Пномер')
+
+    DICT_CLD = CMS.DICT_CLD_KPLAN(db_kplan)
+    DICT_PODR = F.raskrit_dict(CSQ.zapros(db_kplan, """SELECT * FROM podrazdel""", rez_dict=True), 'Имя')
+
+    STATUS_NORM = CSQ.zapros(db_kplan, f"""SELECT * FROM status_norm""", rez_dict=True)
+    DICT_STATUS_NORM = F.raskrit_dict(STATUS_NORM, 'Код')
+    DICT_STATUS_NORM_NAME = F.raskrit_dict(STATUS_NORM, 'Имя')
 
 class mywindow(QtWidgets.QMainWindow):
     resized = QtCore.pyqtSignal()
@@ -34,13 +60,14 @@ class mywindow(QtWidgets.QMainWindow):
         super(mywindow, self).__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.versia = '1.7.92'
+        self.versia = '1.7.5'
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.setWindowTitle("Создание маршрутных карт")
         #self.showMaximized()
         #F.test_path()
         # self.resized.connect(self.widths)
         self.ip_srv = ''
+        self.mk_file_founding = ''
         CMS.load_ip_srv(self)
         self.bd_naryad_TEST = F.scfg('Naryad') + F.sep() + 'old' + F.sep() + 'Naryad.db'
         self.bd_naryad = F.bdcfg('Naryad')
@@ -58,6 +85,8 @@ class mywindow(QtWidgets.QMainWindow):
         self.regim = ''
         self.list_vars_vo = []
         self.SPIS_OP = CSQ.zapros(self.bd_naryad,"""SELECT * FROM operacii""")
+        #self.DICT_FILTR = F.raskrit_dict(CSQ.zapros(self.db_mater, f"""SELECT * FROM complex_filtr""", rez_dict=True), 'kod')
+        self.DICT_MAT = F.raskrit_dict(CSQ.zapros(self.db_mater,f"""SELECT * FROM nomen""",rez_dict=True),'Код')
         if self.SPIS_OP == False:
             CQT.msgbox(f'БД занята, пробуй позже')
             quit()
@@ -81,18 +110,6 @@ class mywindow(QtWidgets.QMainWindow):
             quit()
         CSQ.close_bd(conn_users,cur_users)
 
-        #======= KAL PLAN======================
-        NAPR_DEYAT = CSQ.zapros(self.db_kplan,f"""SELECT * FROM napravl_deyat""",rez_dict=True)
-        self.DICT_NAPR_DEYAT = F.raskrit_dict(NAPR_DEYAT, 'Пномер')
-        self.DICT_NAPR_DEYAT_NAME = F.raskrit_dict(NAPR_DEYAT, 'Имя')
-        self.DICT_VID_PO_NAPR = F.raskrit_dict(
-            CSQ.zapros(self.db_kplan, f"""SELECT * FROM Виды_по_напр""", rez_dict=True), 'Пномер')
-        self.DICT_STATUS_POZ = F.raskrit_dict(
-            CSQ.zapros(self.db_kplan, f"""SELECT * FROM status_poz""", rez_dict=True), 'Пномер')
-        self.DICT_STATUS_ETAPI_ERP = F.raskrit_dict(
-            CSQ.zapros(self.db_kplan, f"""SELECT * FROM status_etapi_erp""", rez_dict=True), 'Пномер')
-        self.DICT_NAPRAVLENIE = F.raskrit_dict(
-            CSQ.zapros(self.db_kplan, f"""SELECT * FROM napravlenie""", rez_dict=True), 'Пномер')
 
         # ================CALENDAR===================================
         self.ui.cld_obespechenie.clicked.connect(lambda _, x=self: OBSP.data_obespech(x))
@@ -161,13 +178,20 @@ class mywindow(QtWidgets.QMainWindow):
             self.ui.tbl_pl_gaf_svod.horizontalScrollBar().setValue)
         self.ui.tbl_kal_pl.horizontalScrollBar().valueChanged.connect(
             self.ui.tbl_filtr_kal_pl.horizontalScrollBar().setValue)
-        self.ui.tbl_pl_gaf_svod.clicked.connect(lambda: GVKPL.set_tooltip_val(self))
+        #self.ui.tbl_pl_gaf_svod.clicked.connect(lambda: GVKPL.set_tooltip_val(self))
+        self.ui.tbl_pl_gaf_svod.setMouseTracking(True)
+        self.ui.tbl_pl_gaf_svod.mouseMoveEvent = self.tbl_pl_gaf_svod_mouseMoveEvent
         self.ui.tbl_pl_gaf_svod.doubleClicked.connect(lambda: GVKPL.dbl_clk_svod_select_etap(self))
         self.ui.tbl_pl_gaf.doubleClicked.connect(lambda: GVKPL.dbl_clk_select_etap(self))
+        self.ui.tbl_preview.setMouseTracking(True)
+        self.ui.tbl_preview.mouseMoveEvent = self.tbl_preview_mouseMoveEvent
+        self.ui.tbl_pl_gaf.setMouseTracking(True)
+        self.ui.tbl_pl_gaf.mouseMoveEvent = self.tbl_pl_gaf_mouseMoveEvent
+        self.ui.btn_save_pl.clicked.connect(lambda: GVKPL.save_kpl_plan(self))
         # =================================================================
         # ==============BUTTON==========================================
 
-        self.ui.btn_open_zayavky.clicked.connect(self.open_zayavk)
+
         self.ui.btn_add_rm.clicked.connect(lambda _, x=self: IND.add_rm(x))
         self.ui.btn_tabeli_ok.clicked.connect(lambda _, x=self: IND.load_tabel_in_db(x))
         self.ui.btn_obespechenie_spis_po_mk.clicked.connect(lambda _, x=self: OBSP.spis_obesp_po_mk(x))
@@ -272,6 +296,12 @@ class mywindow(QtWidgets.QMainWindow):
         self.ui.btn_edit_local_gant_right.clicked.connect(lambda: GKPL.move_right(self))
         self.ui.btn_show_svod.clicked.connect(lambda: GVKPL.show_svod(self))
         self.ui.btn_pl_tabel.clicked.connect(lambda: KPL.show_tabel(self))
+        self.ui.btn_load_file_mk_founfing.clicked.connect(self.load_file_mk_founfing)
+        self.ui.btn_show_file_founding_mk.clicked.connect(self.show_file_founding_mk)
+        self.ui.btn_pl_open_dir.clicked.connect(lambda: KPL.btn_pl_open_dir(self))
+        self.ui.btn_pl_add_trbl.clicked.connect(lambda: KPL.btn_pl_add_trbl(self))
+        self.ui.btn_pl_load_norm.clicked.connect(lambda: KPL.btn_pl_load_norm(self))
+
         # =================================================================
         # ===========COMBOBOX===========================================
 
@@ -310,12 +340,13 @@ class mywindow(QtWidgets.QMainWindow):
 
         # =================================================================
         # =================SLIDER==========================================
-        self.ui.sl_mash_local.valueChanged[int].connect(self.sl_mash_change)
-
+        #self.ui.sl_mash_local.valueChanged[int].connect(self.sl_mash_change)
+        # =================DATE_EDIT==========================================
+        self.ui.de_vol_pl.dateChanged.connect(lambda: GVKPL.save_diapazon_month(self))
+        self.ui.de_vol_pl_end.dateChanged.connect(lambda: GVKPL.save_diapazon_month(self))
         # =================================================================
-
-
-
+        # ===================Check_box=================================
+        self.ui.chk_kpl_zaversch.clicked.connect(lambda: KPL.set_params_kpl(self))
 
         # ========================ACTIONS=================================
 
@@ -336,8 +367,18 @@ class mywindow(QtWidgets.QMainWindow):
 
         self.ui.actionexcel.triggered.connect(self.export_table)
         self.ui.action_txt.triggered.connect(self.export_table_txt)
+        self.ui.action_opn_dir_mk.triggered.connect(self.open_zayavk)
         self.ui.action_res_ERP.triggered.connect(lambda _, x=self: EXPD.export_res_erp(x))
         self.ui.action_plan_date.triggered.connect(lambda _, x=self: ERP.export_date_plan(x))
+        self.ui.action_load_plan.triggered.connect(lambda _, x=self: KPL.import_exel_plan(x))
+        self.ui.action4_px.triggered.connect(lambda: self.sl_mash_change(4))
+        self.ui.action6_px.triggered.connect(lambda: self.sl_mash_change(6))
+        self.ui.action8_px.triggered.connect(lambda: self.sl_mash_change(8))
+        self.ui.action10_px.triggered.connect(lambda: self.sl_mash_change(10))
+        self.ui.action12_px.triggered.connect(lambda: self.sl_mash_change(12))
+        self.ui.action14_px.triggered.connect(lambda: self.sl_mash_change(14))
+        self.ui.action16_px.triggered.connect(lambda: self.sl_mash_change(16))
+        self.ui.action18_px.triggered.connect(lambda: self.sl_mash_change(18))
         # =================================================================
         # =============LOADS========================================
         #KPL.load_gui(self)
@@ -470,12 +511,21 @@ class mywindow(QtWidgets.QMainWindow):
         CQT.load_css(self)
         CQT.load_icons(self,24)
 
+    def tbl_pl_gaf_svod_mouseMoveEvent(self,e):
+        GVKPL.hover_tbl_pl_gaf_svod(self,e)
+    def tbl_preview_mouseMoveEvent(self,e):
+        GKPL.hover_tbl_preview(self,e)
+    @CQT.onerror
+    def tbl_pl_gaf_mouseMoveEvent(self,e):
+        GKPL.hover_tbl_pl_gaf(self,e)
+
 
     def getPos(self, event):
         x = event.pos().x()
         y = event.pos().y()
         CQT.statusbar_text(self,'Mouse coords: ( %d : %d )' % (x, y))
         F.copy_bufer(str(x)+ ";" + str(y))
+
 
 
     def keyReleaseEvent(self, e):
@@ -629,6 +679,14 @@ class mywindow(QtWidgets.QMainWindow):
 
 
     def tab_click(self, ind):
+        def get_params_kpl(self:mywindow):
+            kpl_bool_load_zav = 0
+            try:
+                kpl_bool_load_zav = F.valm(CMS.load_tmp_path('kpl_bool_load_zav'))
+            except:
+                pass
+            self.ui.chk_kpl_zaversch.setChecked(kpl_bool_load_zav)
+
         if CMS.kontrol_ver(self.versia, 'МКарты') == False:
             quit()
         tab = self.ui.tabWidget
@@ -658,15 +716,23 @@ class mywindow(QtWidgets.QMainWindow):
             SLCT.load_table_add(self)
         if tab.tabText(ind) == 'Объемно-календарное планирование':
             self.kpl_mode = 0
-            self.DICT_CLD = CMS.DICT_CLD_KPLAN(self.db_kplan)
-            self.DICT_PODR = F.raskrit_dict(CSQ.zapros(self.db_kplan,"""SELECT * FROM podrazdel""",rez_dict=True),'Имя')
+            self.data_kpl= Data_plan()
             #self.LIST_ETAPS = [ _ for _ in CSQ.spis_tablic(self.db_kplan) if 'пл_' in _ ]
             self.list_tbl_info = []
             self.edit_tabel_mode = False
             if "val_masht" not in dir(self):
-                self.val_masht = self.ui.sl_mash_local.value()
+                self.val_masht = 12
+                try:
+                    self.val_masht = int(CMS.load_tmp_path('mk_val_masht'))
+                except:
+                    pass
+            GVKPL.load_diapazon_month(self)
             KPL.load_gui(self)
-
+            self.ui.splitter_pl.setSizes([400, 180])
+            get_params_kpl(self)
+            GVKPL.get_max_mosh_from_db(self)
+            self.glob_kpl_summ_selct_tbl = ''
+            self.dict_form_kpl = ''
 
 
     def tab_zagruzka_rc(self,nom):
@@ -685,6 +751,7 @@ class mywindow(QtWidgets.QMainWindow):
             self.ui.btn_vigruzka_norm_mat.setEnabled(True)
             self.list_vars_vo = []
             self.spis_poziciy_rez_ruchnoi = []
+            self.res = ''
         if self.ui.tabWidget_2.tabText(nom) == 'Создание МК из *.XML':
             self.ui.btn_vigruzka_norm.setEnabled(True)
             self.ui.btn_vigruzka_norm_mat.setEnabled(False)
@@ -884,6 +951,8 @@ class mywindow(QtWidgets.QMainWindow):
         return True
 
     def zaversh_mkards(self):
+        if not CMS.user_access(self.bd_naryad,'мкарт_маршрутные_завершить',F.user_name()):
+            return
         modifiers = CQT.get_key_modifiers(self)
         tbl = self.ui.table_spis_MK
         nk_nommk = CQT.nom_kol_po_imen(tbl, 'Пномер')
@@ -899,7 +968,8 @@ class mywindow(QtWidgets.QMainWindow):
             for i in range(tbl.rowCount()):
                 if tbl.isRowHidden(i) == False:
                     spis_mk.append(tbl.item(i,nk_nommk).text())
-            if CQT.msgboxgYN(f'Будут принудительно закрыты маршрутные карты №№ {", ".join(spis_mk)}'):
+            spis_mk_text = ", ".join(spis_mk)
+            if CQT.msgboxgYN(f'Будут принудительно закрыты маршрутные карты №№ {spis_mk_text}'):
                 conn, cur = CSQ.connect_bd(self.bd_naryad)
                 for i in range(tbl.rowCount()):
                     if tbl.isRowHidden(i) == False:
@@ -911,13 +981,36 @@ class mywindow(QtWidgets.QMainWindow):
                 CQT.msgbox(f'Успешно завершено')
                 filtr = CMS.znach_filtr(self, self.ui.tbl_filtr_mk)
                 self.load_table_mk(filtr)
+                try:
+                    msg = f"{F.user_full_namre()} ЗАВЕРШИЛ МК №№ {spis_mk_text}"
+                    self.send_info_mk_b24(msg, 'chat41228')
+                except:
+                    print('Ошибка отправки в Б24')
         else:
             nom_mk = int(tbl.item(tbl.currentRow(), nk_nommk).text())
+
+            project = tbl.item(tbl.currentRow(),
+                                        CQT.nom_kol_po_imen(tbl, 'Номенклатура')).text()
+            nom_pu_r = tbl.item(tbl.currentRow(),
+                                         CQT.nom_kol_po_imen(tbl, 'Номер_заказа')).text()
+            nom_pr_r = tbl.item(tbl.currentRow(),
+                                         CQT.nom_kol_po_imen(tbl, 'Номер_проекта')).text()
+            kolvo = tbl.item(tbl.currentRow(), CQT.nom_kol_po_imen(tbl, 'Количество')).text()
+            prim = tbl.item(tbl.currentRow(), CQT.nom_kol_po_imen(tbl, 'Примечание')).text()
+            osnovanie = tbl.item(tbl.currentRow(),
+                                          CQT.nom_kol_po_imen(tbl, 'Основание')).text()
             if not self.check_zaversheni_naruady([nom_mk]):
                 return
             conn, cur = CSQ.connect_bd(self.bd_naryad)
             self.zaversh_mk(conn=conn, cur =cur)
             CSQ.close_bd(conn,cur)
+            try:
+                msg = f"{F.user_full_namre()} ЗАВРЕШИЛ МК № {str(nom_mk)}:\n{project} - {str(kolvo)} шт.\n{nom_pu_r.strip()} Проект: {nom_pr_r.strip()}\n" \
+                      f"Прим.: {prim} {osnovanie}"
+                self.send_info_mk_b24(msg, 'chat41228')
+            except:
+                print('Ошибка отправки в Б24')
+
 
     def zaversh_mk(self, row:int = '', conn='',cur = ''):
         tbl = self.ui.table_spis_MK
@@ -1548,13 +1641,8 @@ class mywindow(QtWidgets.QMainWindow):
 
 
     def export_json(self, exel=False):
-        if self.ui.tabWidget.tabText(self.ui.tabWidget.currentIndex()) == 'Маршрутные карты':
-            if self.ui.table_spis_MK.currentRow() == -1:
-                return
-            nom_mk = self.ui.table_spis_MK.item(self.ui.table_spis_MK.currentRow(),
-                                                CQT.nom_kol_po_imen(self.ui.table_spis_MK, 'Пномер')).text()
-            py = self.ui.table_spis_MK.item(self.ui.table_spis_MK.currentRow(),
-                                            CQT.nom_kol_po_imen(self.ui.table_spis_MK, 'Номер_заказа')).text()
+        
+        def generate(self,exel,rez,nom_mk,py):
             put = F.put_po_umolch()
             if F.nalich_file(CMS.tmp_dir() + F.sep() + 'json_dir_cache.txt'):
                 sod_f = F.load_file(CMS.tmp_dir() + F.sep() + 'json_dir_cache.txt')
@@ -1563,26 +1651,12 @@ class mywindow(QtWidgets.QMainWindow):
             dir = CQT.getDirectory(self, put)
             if dir == ['.'] or dir == '.':
                 return
-            #spis_dse = F.otkr_f(F.scfg('mk_data') + os.sep + str(nom_mk) + '.txt', separ='|')
-            rez = self.resursnaya_from_mk(nom_mk)
-
-            # with open(dir + F.sep() + f'{nom_mk}_{py}.json', 'w') as outfile:
-            #    for entry in rez:
-            #        json.dump(entry, outfile)
-            #        outfile.write('\n')
-            # F.zapis_json(rez, )
-
             F.save_file(CMS.tmp_dir() + F.sep() + 'json_dir_cache.txt', dir)
             if exel == False:
-                path =  dir + F.sep() + f'{nom_mk}_{py}.json'
-                #path2 = dir + F.sep() + f'{nom_mk}_{py}2.json'
-                #path3 = dir + F.sep() + f'{nom_mk}_{py}3.json'
-                #with jsonlines.open(path, 'w') as writer:
-                #    writer.write_all(rez)
-                #F.zapis_json(rez,path2)
-                F.zapis_json(rez, path,False)
+                path = dir + F.sep() + f'{nom_mk}_{py}.json'
+                F.zapis_json(rez, path, False)
                 CQT.msgbox(f'Готово')
-                F.otkr_papky(path)
+                F.otkr_papky(dir)
             else:
                 spis_shab_mk = [
                     ['Номерпп', "Наименование", 'Номенклатурный_номер', 'Количество', 'Уровень', 'Опер_наименовние',
@@ -1605,7 +1679,7 @@ class mywindow(QtWidgets.QMainWindow):
                     ssil = dse['Ссылка']
                     prim = dse['Прим']
                     pki = dse['ПКИ']
-
+    
                     for j, oper in enumerate(dse['Операции']):
                         oper_naim = oper['Опер_наименовние']
                         oper_nom = oper['Опер_номер']
@@ -1624,9 +1698,9 @@ class mywindow(QtWidgets.QMainWindow):
                         perehod = '; '.join(oper['Переходы'])
                         oper_instument = '; '.join(oper['Опер_инстумент'])
                         oper_osnastka = '; '.join(oper['Опер_оснастка'])
-
+    
                         materialy = ':'
-
+    
                         spis_shab_mk.append([nomerpp, naim, nn, kolich, uroven, oper_naim, oper_kod,
                                              oper_nom, oper_rc_naimenovnie, oper_rc_kod, oper_oborud,
                                              oper_oborudovanie_kod,
@@ -1645,12 +1719,40 @@ class mywindow(QtWidgets.QMainWindow):
                                                  str(oper['Материалы'][mat_i]['Мат_норма']),
                                                  '@'.join(list(oper['Материалы'][mat_i]['Мат_параметрика'])), '', '',
                                                  ''])
-
+    
                 CEX.zap_spis(spis_shab_mk, dir, f'{nom_mk}_{py}.xlsx', 'Рес', 1, 1)
                 CQT.msgbox('Готово')
                 F.otkr_papky(dir)
-        else:
-            CQT.msgbox('Не выбрана МК')
+        def from_abstract_mk(self,exel):
+            if self.res == '':
+                CQT.msgbox('Не создана ресурсная')
+                return
+            rez = self.res
+            try:
+                py = self.ui.comboBox_np.currentText().split("$")[1]
+            except:
+                CQT.migat_obj(self,1,self.ui.comboBox_np,f'Ошибка чтения ПУ')
+                return
+            generate(self, exel, rez, "ВО", py)
+        def from_real_mk(self,exel):
+            if self.ui.table_spis_MK.currentRow() == -1:
+                CQT.msgbox(f'Не выбрана МК')
+                return
+            nom_mk = self.ui.table_spis_MK.item(self.ui.table_spis_MK.currentRow(),
+                                                CQT.nom_kol_po_imen(self.ui.table_spis_MK, 'Пномер')).text()
+            py = self.ui.table_spis_MK.item(self.ui.table_spis_MK.currentRow(),
+                                            CQT.nom_kol_po_imen(self.ui.table_spis_MK, 'Номер_заказа')).text()
+            rez = self.resursnaya_from_mk(nom_mk)
+            generate(self,exel,rez,nom_mk,py)
+
+                
+        if self.ui.tabWidget.tabText(self.ui.tabWidget.currentIndex()) == 'Маршрутные карты':
+            from_real_mk(self,exel)
+        if self.ui.tabWidget.tabText(self.ui.tabWidget.currentIndex()) == 'Создание МК':
+            if self.ui.tabWidget_2.tabText(self.ui.tabWidget_2.currentIndex()) == 'Разработка МК':
+                from_abstract_mk(self,exel)
+        return
+
 
     def resursnaya_from_cust_struktura(self, spis_dse, kol_vo_izdeliy=None, ruchnoi=False):
         rez_spis = []
@@ -1702,7 +1804,7 @@ class mywindow(QtWidgets.QMainWindow):
             kolvo_koef = self.kol_v_uzel(spis_dse, i, nk_naim, nk_kol, nk_urov)
             kolvo_summ = kolvo_koef * int(spis_dse[i][nk_kol]) * kol_vo_izdeliy
             if F.nalich_file(putf):
-                rez_tmp = self.dse_for_res(putf,kolvo_summ,npp, naim,nn,uroven_dse,pki,mat,ssil,prim,dreva_kod,Способы_получения_материала)
+                rez_tmp = self.dse_for_res(putf,kolvo_summ,npp, naim,nn,uroven_dse,pki,mat,ssil,prim,dreva_kod,Способы_получения_материала,int(spis_dse[i][nk_kol]))
                 if rez_tmp == None:
                     return
             else:
@@ -1714,7 +1816,7 @@ class mywindow(QtWidgets.QMainWindow):
         return rez_spis
 
 
-    def dse_for_res(self,putf,kolvo_summ,npp, naim,nn,uroven_dse,pki,mat,ssil,prim, dreva_kod,Способы_получения_материала):
+    def dse_for_res(self,putf,kolvo_summ,npp, naim,nn,uroven_dse,pki,mat,ssil,prim, dreva_kod,Способы_получения_материала,kol_ed):
 
         rez_spis_op = []
         nk_rc_tk = 4
@@ -1826,7 +1928,7 @@ class mywindow(QtWidgets.QMainWindow):
                                     "Опер_инстумент": rez_spis_instr, "Опер_оснастка": rez_spis_osn,
                                     "Материалы": rez_spis_mat, "Переходы": spis_per})
 
-        rez_tmp = {'Номерпп': npp, 'Наименование': naim, 'Номенклатурный_номер': nn, 'Количество': kolvo_summ,
+        rez_tmp = {'Номерпп': npp, 'Наименование': naim, 'Номенклатурный_номер': nn, 'Количество': kolvo_summ, 'Количество_ед': kol_ed,
                    'Уровень': uroven_dse, "Операции": rez_spis_op, 'Параметрика': dict(), 'Документы': tk_docs,
                    'ПКИ': pki, 'Мат_кд': mat, 'Ссылка': ssil, 'Прим': prim,
                                     "dreva_kod" : dreva_kod, "Способы_получения_материала" : Способы_получения_материала}
@@ -2382,11 +2484,24 @@ class mywindow(QtWidgets.QMainWindow):
         self.ui.label_ass.clear()
 
     def close_mk(self):
-        # TODO проверить работу
         if self.tabl_mk.currentRow() == -1:
+            return
+        tbl = self.tabl_mk
+        if not CMS.user_access(self.bd_naryad,'мкарт_маршрутные_закрытьоткрыть',F.user_name()):
             return
         row = self.tabl_mk.currentRow()
         nom_tek_mk = self.tabl_mk.item(row, CQT.nom_kol_po_imen(self.tabl_mk, 'Пномер')).text()
+        nom_mk = nom_tek_mk
+        project = tbl.item(tbl.currentRow(),
+                           CQT.nom_kol_po_imen(tbl, 'Номенклатура')).text()
+        nom_pu_r = tbl.item(tbl.currentRow(),
+                            CQT.nom_kol_po_imen(tbl, 'Номер_заказа')).text()
+        nom_pr_r = tbl.item(tbl.currentRow(),
+                            CQT.nom_kol_po_imen(tbl, 'Номер_проекта')).text()
+        kolvo = tbl.item(tbl.currentRow(), CQT.nom_kol_po_imen(tbl, 'Количество')).text()
+        prim = tbl.item(tbl.currentRow(), CQT.nom_kol_po_imen(tbl, 'Примечание')).text()
+        osnovanie = tbl.item(tbl.currentRow(),
+                             CQT.nom_kol_po_imen(tbl, 'Основание')).text()
         if not self.check_zaversheni_naruady([int(nom_tek_mk)]):
             return
         #qery = CSQ.naiti_v_bd(self.bd_naryad, 'mk', {'Пномер': int(nom_tek_mk)},
@@ -2402,6 +2517,13 @@ class mywindow(QtWidgets.QMainWindow):
                 CQT.msgbox('Не удалось записать')
                 return
             self.tab_click(row)
+
+            try:
+                msg = f"{F.user_full_namre()} ЗАКРЫЛ мк № {str(nom_mk)}:\n{project} - {str(kolvo)} шт.\n{nom_pu_r.strip()} Проект: {nom_pr_r.strip()}\n" \
+                      f"Прим.: {prim} {osnovanie}"
+                self.send_info_mk_b24(msg, 'chat41228')
+            except:
+                print('Ошибка отправки в Б24')
         self.ui.pushButton_open_mk.setEnabled(True)
         self.ui.pushButton_close_mk.setEnabled(False)
 
@@ -2423,6 +2545,12 @@ class mywindow(QtWidgets.QMainWindow):
         if CMS.user_access(self.bd_naryad,'созданиемаршрутныхкарт_удалить', F.user_name()) == False:
             return
         nom_mk = self.tabl_mk.item(self.tabl_mk.currentRow(), 0).text()
+        project = self.tabl_mk.item(self.tabl_mk.currentRow(), CQT.nom_kol_po_imen(self.tabl_mk,'Номенклатура')).text()
+        nom_pu_r = self.tabl_mk.item(self.tabl_mk.currentRow(), CQT.nom_kol_po_imen(self.tabl_mk,'Номер_заказа')).text()
+        nom_pr_r = self.tabl_mk.item(self.tabl_mk.currentRow(), CQT.nom_kol_po_imen(self.tabl_mk,'Номер_проекта')).text()
+        kolvo = self.tabl_mk.item(self.tabl_mk.currentRow(), CQT.nom_kol_po_imen(self.tabl_mk,'Количество')).text()
+        prim =self.tabl_mk.item(self.tabl_mk.currentRow(), CQT.nom_kol_po_imen(self.tabl_mk,'Примечание')).text()
+        osnovanie =self.tabl_mk.item(self.tabl_mk.currentRow(), CQT.nom_kol_po_imen(self.tabl_mk,'Основание')).text()
         progress = self.tabl_mk.item(self.tabl_mk.currentRow(), CQT.nom_kol_po_imen(self.tabl_mk, 'Прогресс')).text()
         if progress != '':
             CQT.msgbox('Нельзя удалить начатую МК')
@@ -2440,6 +2568,7 @@ class mywindow(QtWidgets.QMainWindow):
             rez = CSQ.zapros(self.bd_naryad, f"""DELETE FROM zagot where Ном_МК = {int(nom_tek_mk)}""")
             rez = CSQ.zapros(self.db_resxml, f"""DELETE FROM res where Номер_мк = {int(nom_tek_mk)}""")
             rez = CSQ.zapros(self.db_resxml, f"""DELETE FROM xml where Номер_мк = {int(nom_tek_mk)}""")
+            rez = CSQ.zapros(self.bd_files, f"""DELETE FROM MK_founding where Num_mk = {int(nom_tek_mk)}""")
             try:
                 rez = CSQ.zapros(self.bd_naryad, f"""DELETE FROM дорезки_мк where Номер_мк = {int(nom_tek_mk)}""")
             except:
@@ -2450,6 +2579,12 @@ class mywindow(QtWidgets.QMainWindow):
             if F.nalich_file(F.scfg('mk_data') + os.sep + nom_mk):
                 F.udal_papky(F.scfg('mk_data') + os.sep + nom_mk)
             CQT.msgbox(f"Маршрутная карта номер {nom_mk} удалена успешно")
+            try:
+                msg = f"{F.user_full_namre()} !УДАЛИЛ мк № {str(nom_mk)}:\n{project} - {str(kolvo)} шт.\n{nom_pu_r.strip()} Проект: {nom_pr_r.strip()}\n" \
+                      f"Прим.: {prim} {osnovanie}"
+                self.send_info_mk_b24(msg, 'chat41228')
+            except:
+                print('Ошибка отправки в Б24')
 
     def add_res_to_mk(self, xml, kol_vo_izdeliy, nom_tek_mk,xml_head, conn = '', cur = ''):
         self.res = CMS.resursnaya_from_xml(self, self.podgotovka_xml(XML.spisok_iz_xml(str_f=xml),xml_head), kol_vo_izdeliy, conn=conn,cur=cur)
@@ -2479,9 +2614,22 @@ class mywindow(QtWidgets.QMainWindow):
     def open_mk(self):
         if self.tabl_mk.currentRow() == -1:
             return
+        if not CMS.user_access(self.bd_naryad,'мкарт_маршрутные_закрытьоткрыть',F.user_name()):
+            return
         row = self.tabl_mk.currentRow()
+        tbl = self.tabl_mk
         nom_tek_mk = self.tabl_mk.item(row, CQT.nom_kol_po_imen(self.tabl_mk, 'Пномер')).text()
-
+        nom_mk = nom_tek_mk
+        project = tbl.item(tbl.currentRow(),
+                           CQT.nom_kol_po_imen(tbl, 'Номенклатура')).text()
+        nom_pu_r = tbl.item(tbl.currentRow(),
+                            CQT.nom_kol_po_imen(tbl, 'Номер_заказа')).text()
+        nom_pr_r = tbl.item(tbl.currentRow(),
+                            CQT.nom_kol_po_imen(tbl, 'Номер_проекта')).text()
+        kolvo = tbl.item(tbl.currentRow(), CQT.nom_kol_po_imen(tbl, 'Количество')).text()
+        prim = tbl.item(tbl.currentRow(), CQT.nom_kol_po_imen(tbl, 'Примечание')).text()
+        osnovanie = tbl.item(tbl.currentRow(),
+                             CQT.nom_kol_po_imen(tbl, 'Основание')).text()
         conn, cur = CSQ.connect_bd(self.bd_naryad)
         #qery = CSQ.naiti_v_bd(self.bd_naryad, 'mk', {'Пномер': int(nom_tek_mk)}, ['Статус', 'Прогресс', 'Основание', 'Количество'], conn=conn,cur=cur)
         qery = CSQ.zapros(self.bd_naryad, f"""SELECT Статус, Прогресс, Основание, Количество, Дата_завершения
@@ -2523,6 +2671,13 @@ class mywindow(QtWidgets.QMainWindow):
             self.ui.pushButton_open_mk.setEnabled(False)
             self.ui.pushButton_close_mk.setEnabled(True)
             self.tab_click(row)
+
+            try:
+                msg = f"{F.user_full_namre()} ОТКРЫЛ мк № {str(nom_mk)}:\n{project} - {str(kolvo)} шт.\n{nom_pu_r.strip()} Проект: {nom_pr_r.strip()}\n" \
+                      f"Прим.: {prim} {osnovanie}"
+                self.send_info_mk_b24(msg, 'chat41228')
+            except:
+                print('Ошибка отправки в Б24')
         else:
             CSQ.close_bd(conn,cur)
 
@@ -3038,17 +3193,7 @@ class mywindow(QtWidgets.QMainWindow):
                 break
         return int(koef)
 
-    def kol_v_uzel_xml(self, xml, j):
-        koef = 1
-        koef_ur = int(xml[j]['uroven'])
-        for k in range(j - 1, 0, -1):
-            ur_tmp = int(xml[k]['uroven'])
-            if ur_tmp < koef_ur:
-                koef *= int(xml[k]['data']['Количество'])
-                koef_ur = ur_tmp
-            if koef_ur == 0:
-                break
-        return koef
+
 
     def kol_na_izd(self, s, kol_po_zayav: int):
         nk_kol = F.nom_kol_po_im_v_shap(s, 'Количество')
@@ -3129,28 +3274,45 @@ class mywindow(QtWidgets.QMainWindow):
                 ves += (F.valm(s_vert[i][nom_kol_mat].split('/')[0]) * F.valm(s_vert[i][nom_kol_kol]))
         return ves
 
-    def raschet_vesa_dse(self, s_vert, ruchnoi = False):
-        nom_kol_mat = F.nom_kol_po_im_v_shap(s_vert, 'Масса/М1,М2,М3')
-        nom_kol_kol = F.nom_kol_po_im_v_shap(s_vert, 'Количество')
-        nom_kol_naim = F.nom_kol_po_im_v_shap(s_vert, 'Наименование')
-        nom_kol_tip = F.nom_kol_po_im_v_shap(s_vert, 'Тип')
-        ves = 0
-        if ruchnoi == False:
-            for i in range(1, len(s_vert)):
-                if s_vert[i][nom_kol_tip] != 'Сборочная единица':
-                    if F.is_numeric(s_vert[i][nom_kol_mat].split('/')[0]) == False:
-                        CQT.msgbox(f'В строке {i} вес не число')
-                        return 0
-                    ves += (F.valm(s_vert[i][nom_kol_mat].split('/')[0]) * F.valm(s_vert[i][nom_kol_kol]) *  self.kol_v_uzel(s_vert, i,nom_kol_naim, nom_kol_kol))
-
-        else:
-            for i in range(1, len(s_vert)):
-                if s_vert[i][nom_kol_mat].split('/')[1] != '' and s_vert[i][nom_kol_mat].split('/')[2] != '':
-                    if F.is_numeric(s_vert[i][nom_kol_mat].split('/')[0]) == False:
-                        CQT.msgbox(f'В строке {i} вес не число')
-                        return 0
-                    ves += (F.valm(s_vert[i][nom_kol_mat].split('/')[0]) * F.valm(s_vert[i][nom_kol_kol]) *  self.kol_v_uzel(s_vert, i,nom_kol_naim, nom_kol_kol))
-        return ves
+    def raschet_vesa_dse(self):
+        self.LIST_ED_IZM_MAT = ['Килограмм', 'кг']
+        #nom_kol_mat = F.nom_kol_po_im_v_shap(s_vert, 'Масса/М1,М2,М3')
+        #nom_kol_kol = F.nom_kol_po_im_v_shap(s_vert, 'Количество')
+        #nom_kol_naim = F.nom_kol_po_im_v_shap(s_vert, 'Наименование')
+        #nom_kol_tip = F.nom_kol_po_im_v_shap(s_vert, 'Тип')
+        #ves = 0
+        #if ruchnoi == False:
+        #    for i in range(1, len(s_vert)):
+        #        if s_vert[i][nom_kol_tip] != 'Сборочная единица':
+        #            if F.is_numeric(s_vert[i][nom_kol_mat].split('/')[0]) == False:
+        #                CQT.msgbox(f'В строке {i} вес не число')
+        #                return 0
+        #            ves += (F.valm(s_vert[i][nom_kol_mat].split('/')[0]) * F.valm(s_vert[i][nom_kol_kol]) *  self.kol_v_uzel(s_vert, i,nom_kol_naim, nom_kol_kol))
+        #
+        #else:
+        #    for i in range(1, len(s_vert)):
+        #        if s_vert[i][nom_kol_mat].split('/')[1] != '' and s_vert[i][nom_kol_mat].split('/')[2] != '':
+        #            if F.is_numeric(s_vert[i][nom_kol_mat].split('/')[0]) == False:
+        #                CQT.msgbox(f'В строке {i} вес не число')
+        #                return 0
+        #            ves += (F.valm(s_vert[i][nom_kol_mat].split('/')[0]) * F.valm(s_vert[i][nom_kol_kol]) *  self.kol_v_uzel(s_vert, i,nom_kol_naim, nom_kol_kol))
+        if self.res == '':
+            CQT.msgbox(f'ОШибка')
+            return
+        ves_res = 0
+        ves_res_list= 0
+        list_hz_mat= []
+        res = self.res
+        for dse in res:
+            for oper in dse['Операции']:
+                for mat in oper['Материалы']:
+                    if mat['Мат_ед_изм'] in self.LIST_ED_IZM_MAT:
+                        ves_res += F.valm(mat['Мат_норма'])
+                        # print(f"{F.valm(mat['Мат_норма'])} опер {oper['Опер_наименовние']} дет {dse['Наименование']}")
+                        if mat['Мат_код'] in self.DICT_MAT and self.DICT_MAT[mat['Мат_код']]['П5'] == '1':
+                            if self.DICT_MAT[mat['Мат_код']]['П6'] != '':
+                                ves_res_list += F.valm(mat['Мат_норма'])
+        return ves_res, round(ves_res_list,2)
 
     def create_sp_dreva_ruchnoi(self):
         tabl_cr_stukt = self.ui.table_razr_MK
@@ -3200,7 +3362,7 @@ class mywindow(QtWidgets.QMainWindow):
         if sp_xml_tmp == None:
             CQT.msgbox('Файл не корректный')
             return
-        self.xml_file = F.convert_to_binary_data(putt_xml)
+        self.xml_file = F.load_file_convert_to_binary(putt_xml)
         if sp_izd[0][2] == '':
             CQT.msgbox("Не указано Количество по заявке")
             return
@@ -3262,6 +3424,7 @@ class mywindow(QtWidgets.QMainWindow):
         return s_vert
 
     def create_mk(self):
+        self.ves_res_list = 0
         if self.ui.comboBox_napravlenia.currentText() == '':
             CQT.msgbox('Не указано направление')
             return
@@ -3312,10 +3475,11 @@ class mywindow(QtWidgets.QMainWindow):
                     return
                 print(k[0], k[1], k[2], i, self.ogran)
                 s_vert = self.dob_etap(s_vert, k[0], k[1], k[2], i, self.ogran)
-        if self.ui.tabWidget_2.currentIndex() == 1:  # вручную# вручную# вручную# вручную# вручную# вручную# вручную:
-            self.ui.lineEdit_ves.setText(str(round(self.raschet_vesa_dse(s_vert,ruchnoi=True) * self.kol_izdeliy, 1)))
-        else:# xml# xml# xml# xml# xml# xml# xml# xml# xml# xml# xml# xml# xml# xml# xml# xml# xml
-            self.ui.lineEdit_ves.setText(str(round(self.raschet_vesa_dse(s_vert) * self.kol_izdeliy, 1)))
+        ves, self.ves_res_list = self.raschet_vesa_dse()
+        #if self.ui.tabWidget_2.currentIndex() == 1:               # вручную# вручную# вручную# вручную# вручную# вручную# вручную:
+        self.ui.lineEdit_ves.setText(str(round(ves, 2)))
+        #else:                                           # xml# xml# xml# xml# xml# xml# xml# xml# xml# xml# xml# xml# xml# xml# xml# xml# xml
+        #    self.ui.lineEdit_ves.setText(str(round(self.raschet_vesa_dse()[0], 2)))
         CQT.statusbar_text(self, 'Оформление итоговой табицы')
         #s_vert = self.oformlenie_sp_pod_mk(s_vert)
         if s_vert == None:
@@ -3335,6 +3499,7 @@ class mywindow(QtWidgets.QMainWindow):
         self.ui.btn_save_cust_drevo.setEnabled(False)
         self.ui.btn_load_cust_drevo.setEnabled(False)
         self.ui.pushButton_create_paralel.setEnabled(False)
+        self.mk_file_founding = ''
 
     def oformlenie_formi_mk(self, tabl, s):
         for i in range(11, len(s[0]) - 1, 4):
@@ -3352,12 +3517,55 @@ class mywindow(QtWidgets.QMainWindow):
                 #    tabl.setItem(j,i, cellinfo)
                 # tabl.item(j,i).setBackground(QtGui.QColor(227,227,227))
                 CQT.ust_color_wtab(tabl, j, i, 227, 227, 227)
+    def show_file_founding_mk(self):
+        if self.tabl_mk.currentRow() == -1:
+            return
+        row = self.tabl_mk.currentRow()
+        tbl = self.tabl_mk
+        nom_tek_mk = self.tabl_mk.item(row, CQT.nom_kol_po_imen(self.tabl_mk, 'Пномер')).text()
+        nom_mk = int(nom_tek_mk)
+        path = self.get_file_founding(nom_mk,F.put_po_umolch())
+        if path == False:
+            CQT.msgbox(f'Отсутствует файл')
+            return
+        F.zapust_file_os(path)
 
+    def load_file_mk_founfing(self):
+        path = CQT.f_dialog_name(self,'Выбрать СЗ',CMS.load_tmp_path('file_mk_founfing'),"PDF files (*.pdf)")
+        if path == '.':
+            return
+        CMS.save_tmp_path('file_mk_founfing', path,True)
+        self.mk_file_founding = F.load_file_convert_to_binary(path)
+        if sys.getsizeof(self.mk_file_founding) > 1048576:
+            self.mk_file_founding = ''
+            CQT.msgbox(f'Размер файла должен быть не более 1 мб')
+            return
+        self.mk_file_founding = F.pack_byte_file(self.mk_file_founding)
+        return
+
+    def check_file_founding(self):
+        if self.mk_file_founding == "":
+            CQT.migat_obj(self,2,self.ui.btn_load_file_mk_founfing,'Файл - СЗ основание не выбран')
+            return False
+        return True
+    def get_file_founding(self,nom_mk,path_save):
+        file = CSQ.zapros(self.bd_files, f"""SELECT file FROM MK_founding WHERE Num_mk = {int(nom_mk)}""", one=True,
+                          shapka=False, one_column=True)
+        if file == False or file == [] or file == ['']:
+            return False
+        unpack = F.unpack_byte_file(file[0])
+        F.save_binary_convert_to_file(unpack,
+                                      path_save + F.sep() + f'{str(nom_mk)}.pdf')
+        return path_save + F.sep() + f'{str(nom_mk)}.pdf'
     def save_mk(self):
+        msg_proizv_err = 'Необходима СЗ .pdf подписанная нач. Производства'
+        msg_pdo_err = 'Необходима СЗ .pdf подписанная нач. ПДО'
+        msg_tehn_err = 'Необходима СЗ .pdf подписанная гл. Технологом'
         # nom_pu = self.ui.comboBox_PY
         nom_pr = self.ui.comboBox_np
         prim = self.ui.lineEdit_prim
         tab2 = self.ui.tabWidget_2
+
         if self.res == '':
             CQT.msgbox('Не создана ресурсная')
             return
@@ -3377,11 +3585,33 @@ class mywindow(QtWidgets.QMainWindow):
         if self.ui.cmb_tip_mk.currentText() == '':
             CQT.migat_obj(self,2,self.ui.cmb_tip_mk,'Не выбран тип МК')
             return
-        tip_mk = self.DICT_TIP_MK[self.ui.cmb_tip_mk.currentText()]['Пномер']
 
+
+        tip_mk = self.DICT_TIP_MK[self.ui.cmb_tip_mk.currentText()]['Пномер']
+        if tip_mk == 4:
+            CQT.msgbox(f'Отключено')
+            return
         if tip_mk == 2:
             if self.ui.cmb_tip_dorez.currentText() == '':
                 CQT.migat_obj(self, 2, self.ui.cmb_tip_dorez, 'Не выбран тип дорезки')
+                return
+            if not self.check_file_founding():
+                if self.DICT_TIP_DOREZ[self.ui.cmb_tip_dorez.currentText()] in (1,2,3,11):
+                    CQT.msgbox(msg_proizv_err)
+                    return
+                if self.DICT_TIP_DOREZ[self.ui.cmb_tip_dorez.currentText()] in (10,12):
+                    CQT.msgbox(msg_pdo_err)
+                    return
+                if self.DICT_TIP_DOREZ[self.ui.cmb_tip_dorez.currentText()] in (4,5,6,7,8,9):
+                    CQT.msgbox(msg_tehn_err)
+                    return
+        if tip_mk == 3:
+            if not self.check_file_founding():
+                CQT.msgbox(msg_tehn_err)
+                return
+        if tip_mk == 5:
+            if not self.check_file_founding():
+                CQT.msgbox(msg_proizv_err)
                 return
 
         ves = F.valm(self.ui.lineEdit_ves.text())
@@ -3421,14 +3651,14 @@ class mywindow(QtWidgets.QMainWindow):
         osnovanie = self.ui.label_ass.text()
         data_sozd = F.date(2)
 
-
+        prim = prim.text().replace('\n', ' ')
         stroki_strok = [
             [data_sozd, 'Закрыта', project, nom_pu_r.strip(), nom_pr_r.strip(), self.ui.comboBox_vid.currentText(),
-             prim.text().replace('\n', ' '), osnovanie, '', '9999',
+             prim, osnovanie, '', '9999',
              self.ui.comboBox_napravlenia.currentText(),
              ves, '', self.kol_izdeliy, '', '', '', 2, '', self.place,'',tip_mk, '']]
         self.xml_head = 1
-        # ---------------
+        #---------------
         CONN, cur = CSQ.connect_bd(self.bd_naryad)
         #CSQ.dob_strok_v_bd_sql(self.bd_naryad, 'mk', stroki_strok, conn=CONN, cur = cur)
         CSQ.zapros(self.bd_naryad,f"""INSERT INTO mk(Дата
@@ -3458,12 +3688,12 @@ class mywindow(QtWidgets.QMainWindow):
         nom = str(CSQ.posl_strok_bd(self.bd_naryad, 'mk', 'Пномер', ['Пномер'], conn=CONN, cur = cur)[0])
 
         #CSQ.dob_strok_v_bd_sql(self.bd_naryad, 'zagot', stroki_strok=[[int(nom), '']], s_pervoi=False, conn=CONN, cur =cur)
-        CSQ.zapros(self.bd_naryad,"""INSERT INTO  zagot(Ном_МК,Прим_резка) VALUES (?,?);""", conn=CONN,
-                   cur = cur, spisok_spiskov=[[int(nom), '']])
+        CSQ.zapros(self.bd_naryad, """INSERT INTO  zagot(Ном_МК,Прим_резка,Вес_по_рес) VALUES (?,?,?);""", conn=CONN,
+                   cur = cur, spisok_spiskov=[[int(nom), '',self.ves_res_list]])
         check_zagot = CSQ.zapros(self.bd_naryad,f"""SELECT * FROM zagot WHERE Ном_МК == {int(nom)}""")
         if len(check_zagot) == 1:
-            CSQ.zapros(self.bd_naryad, """INSERT INTO  zagot(Ном_МК,Прим_резка) VALUES (?,?);""", conn=CONN,
-                       cur=cur, spisok_spiskov=[[int(nom), '']])
+            CSQ.zapros(self.bd_naryad, """INSERT INTO  zagot(Ном_МК,Прим_резка,Вес_по_рес) VALUES (?,?,?);""", conn=CONN,
+                       cur=cur, spisok_spiskov=[[int(nom), '',self.ves_res_list]])
             check_zagot = CSQ.zapros(self.bd_naryad, f"""SELECT * FROM zagot WHERE Ном_МК == {int(nom)}""")
             if len(check_zagot) == 1:
                 CQT.msgbox(f'Ошибка загрузки МК, не внесена строка в журнал zagot нужно внести вручную')
@@ -3494,6 +3724,10 @@ class mywindow(QtWidgets.QMainWindow):
             CSQ.zapros(self.db_resxml, """UPDATE res SET(Номер_мк,data) = (?,?);""", conn=CONN,
                        cur=cur, spisok_spiskov=[[int(nom), res_pickle]])
         CSQ.close_bd(CONN, cur)
+
+        CSQ.zapros(self.bd_files, """INSERT INTO  MK_founding(Num_mk,file,fio) VALUES (?,?,?);""",
+                   spisok_spiskov=[[int(nom), self.mk_file_founding,F.user_name()]])
+
         # nom = str(CSQ.naiti_v_bd(self.bd_naryad, 'mk',{'Дата':data_sozd},['Пномер'])[0][0])
         if self.ui.tabWidget_2.currentIndex() == 0:
             spisok = CQT.spisok_iz_wtabl(tabl, '', True)
@@ -3530,6 +3764,12 @@ class mywindow(QtWidgets.QMainWindow):
         else:
             self.ui.table_zayavk.clear()
             self.ui.table_zayavk.setRowCount(0)
+        try:
+            msg = f"{F.user_full_namre()} СОЗДАЛ МК № {str(nom)}:\n{project} - {self.kol_izdeliy} шт.\n{nom_pu_r.strip()} Проект: {nom_pr_r.strip()}\n" \
+                  f"Прим.: {prim} {osnovanie},\nТип: {self.ui.cmb_tip_mk.currentText()}  {self.ui.cmb_tip_dorez.currentText()}"
+            self.send_info_mk_b24(msg,'chat41228')
+        except:
+            print('Ошибка отправки в Б24')
         CQT.msgbox('маршрутная карта ' + str(nom) + ' успешно сохранена')
         try:
             self.ui.tabWidget.setCurrentIndex(CQT.nom_tab_po_imen(self.ui.tabWidget, 'Маршрутные карты'))
@@ -3542,6 +3782,10 @@ class mywindow(QtWidgets.QMainWindow):
             self.ui.table_spis_MK.scrollToBottom()
         except:
             pass
+
+    def send_info_mk_b24(self,msg,id):
+        conn = CB24.B24(id)
+        conn.msg(msg)
 
     def summ_kol(self, s, i):
         naim = s[i][0].strip()
@@ -3793,43 +4037,75 @@ class mywindow(QtWidgets.QMainWindow):
         tabl = self.ui.table_zayavk
         tree = self.ui.treeWidget
         tab = self.ui.tabWidget
-        if tab.currentIndex() > 2:
-            self.ui.tabWidget.setCurrentIndex(0)
 
-        tmp_putt = CMS.load_tmp_path("tmp_putt")
 
-        putt = CQT.f_dialog_name(self, 'Выбрать XML', tmp_putt, "Файлы *.xml")
-        if putt == '' or putt == '.':
-            return
+        if vklad.currentIndex() == CQT.nom_tab_po_imen(vklad,'Маршрутные карты') :
+            xml = ''
+            tbl = self.ui.table_spis_MK
+            row = tbl.currentRow()
+            if row == -1:
+                return
+            nk_pnom = CQT.nom_kol_po_imen(tbl,'Пномер')
+            nom_mk =int(tbl.item(row,nk_pnom).text())
+            try:
+                query = f'''SELECT data, Head FROM xml 
+                                   WHERE Номер_мк == {nom_mk}
+                                               '''
+                rez_xml = CSQ.zapros(self.db_resxml, query)
+                xml = rez_xml[-1][0]
+                xml_head = rez_xml[-1][1]
+                if xml != '':
+                    xml = XML.spisok_iz_xml(str_f=xml)
+                    self.ui.tabWidget.setCurrentIndex(0)
+                putt = ''
 
-        CMS.save_tmp_path("tmp_putt", putt, True)
+            except:
+                pass
+        else:
+            if tab.currentIndex() > 2:
+                self.ui.tabWidget.setCurrentIndex(0)
+            tmp_putt = CMS.load_tmp_path("tmp_putt")
+            putt = CQT.f_dialog_name(self, 'Выбрать XML', tmp_putt, "Файлы *.xml")
+            if putt == '' or putt == '.':
+                return
 
+            CMS.save_tmp_path("tmp_putt", putt, True)
+
+            xml = XML.spisok_iz_xml(putt)
 
         if vklad.currentIndex() == 0:
-            spis_xml = self.podgotovka_xml(XML.spisok_iz_xml(putt), show_negruz=True)
+            spis_xml = self.podgotovka_xml(xml, show_negruz=True)
             if spis_xml == None:
                 CQT.msgbox('Файл не корректный')
                 return
             err_flag = False
+            msg_text = ''
             for i in range(len(spis_xml)):
+                if 'Тип' not in spis_xml[i]['data']:
+                    err_flag = True
+                    msg_text = f'Отсутствует поле Тип'
                 if spis_xml[i]['data']['Наименование'] == "" and spis_xml[i]['data']['Обозначение полное'] == "":
                     err_flag = True
+                    msg_text = f'Наименование  и  Обозначение полное ПУСТО'
                 if spis_xml[i]['data']['Количество'] == "" or spis_xml[i]['data']['Количество на изделие'] == "":
+                    msg_text = f'Количество  и  Количество на изделие ПУСТО'
                     err_flag = True
             if err_flag == True:
-                CQT.msgbox(f'Файл XML {putt} имеет ошибки, работать с ним нельзя!')
+                CQT.msgbox(f'Файл XML {putt} имеет ошибки \n{msg_text}\n работать с ним нельзя!')
             if err_flag == True:
                 self.ui.pushButton_add_v_bd.setEnabled(False)
                 self.ui.pushButton_add_v_MK.setEnabled(False)
+                return
             else:
                 self.ui.pushButton_add_v_bd.setEnabled(True)
                 self.ui.pushButton_add_v_MK.setEnabled(True)
+
             list_user = self.load_tree(spis_xml)
             self.zapoln_tree_spiskom(spis_xml,list_user)
             for _ in range(0, 8):
                 tree.resizeColumnToContents(_)
         if vklad.currentIndex() == 1:
-            spis_xml = self.podgotovka_xml(XML.spisok_iz_xml(putt), show_negruz=False)
+            spis_xml = self.podgotovka_xml(xml, show_negruz=False)
             if spis_xml == None:
                 CQT.msgbox('Файл не корректный')
                 return
@@ -4266,6 +4542,7 @@ class mywindow(QtWidgets.QMainWindow):
 
     def sl_mash_change(self, val):
         self.val_masht = val
+        CMS.save_tmp_path('mk_val_masht',str(self.val_masht))
         if self.kpl_mode == 0:
             GKPL.oforml_table(self,self.ui.tbl_preview)
         else:

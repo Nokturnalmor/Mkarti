@@ -16,27 +16,6 @@
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
-     <layout class="QHBoxLayout" name="horizontalLayout_9">
-      <item>
-       <widget class="QPushButton" name="btn_open_zayavky">
-        <property name="text">
-         <string>Открыть заявку на производство</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QCheckBox" name="chk_progress">
-        <property name="toolTip">
-         <string>Отображать  прогресс активных МК</string>
-        </property>
-        <property name="text">
-         <string>Прогресс</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </item>
-    <item>
      <widget class="QTabWidget" name="tabWidget">
       <property name="font">
        <font>
@@ -44,7 +23,7 @@
        </font>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -502,6 +481,9 @@
             <property name="inputMask">
              <string/>
             </property>
+            <property name="readOnly">
+             <bool>true</bool>
+            </property>
             <property name="placeholderText">
              <string>Вес по МК</string>
             </property>
@@ -576,6 +558,31 @@
               <width>122</width>
               <height>30</height>
              </size>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_load_file_mk_founfing">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>30</width>
+              <height>30</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>30</width>
+              <height>30</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Выбрать СЗ основание</string>
             </property>
            </widget>
           </item>
@@ -896,6 +903,25 @@
                </widget>
               </item>
               <item>
+               <widget class="QPushButton" name="btn_show_file_founding_mk">
+                <property name="minimumSize">
+                 <size>
+                  <width>0</width>
+                  <height>30</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>30</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string>Открыть CЗ основание мк</string>
+                </property>
+               </widget>
+              </item>
+              <item>
                <widget class="QPushButton" name="btn_zaversh">
                 <property name="minimumSize">
                  <size>
@@ -955,6 +981,28 @@
                 </property>
                 <property name="text">
                  <string>Отметка дата выгружена ресурсная в ЕРП</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QCheckBox" name="chk_progress">
+                <property name="minimumSize">
+                 <size>
+                  <width>100</width>
+                  <height>22</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>100</width>
+                  <height>22</height>
+                 </size>
+                </property>
+                <property name="toolTip">
+                 <string>Отображать  прогресс активных МК</string>
+                </property>
+                <property name="text">
+                 <string>Прогресс</string>
                 </property>
                </widget>
               </item>
@@ -1221,37 +1269,6 @@
        </attribute>
        <layout class="QHBoxLayout" name="horizontalLayout_13">
         <item>
-         <widget class="QSlider" name="sl_mash_local">
-          <property name="maximumSize">
-           <size>
-            <width>12</width>
-            <height>16777215</height>
-           </size>
-          </property>
-          <property name="statusTip">
-           <string>Масштаб графика</string>
-          </property>
-          <property name="minimum">
-           <number>4</number>
-          </property>
-          <property name="maximum">
-           <number>20</number>
-          </property>
-          <property name="singleStep">
-           <number>2</number>
-          </property>
-          <property name="value">
-           <number>10</number>
-          </property>
-          <property name="tracking">
-           <bool>true</bool>
-          </property>
-          <property name="orientation">
-           <enum>Qt::Vertical</enum>
-          </property>
-         </widget>
-        </item>
-        <item>
          <widget class="QFrame" name="fr_pl_tables">
           <property name="frameShape">
            <enum>QFrame::StyledPanel</enum>
@@ -1290,16 +1307,21 @@
               <enum>QFrame::Raised</enum>
              </property>
              <layout class="QVBoxLayout" name="verticalLayout_38">
-              <item>
-               <widget class="QTableWidget" name="tbl_filtr_kal_pl">
-                <property name="maximumSize">
-                 <size>
-                  <width>16777215</width>
-                  <height>66</height>
-                 </size>
-                </property>
-               </widget>
-              </item>
+              <property name="spacing">
+               <number>1</number>
+              </property>
+              <property name="leftMargin">
+               <number>1</number>
+              </property>
+              <property name="topMargin">
+               <number>1</number>
+              </property>
+              <property name="rightMargin">
+               <number>1</number>
+              </property>
+              <property name="bottomMargin">
+               <number>1</number>
+              </property>
               <item>
                <widget class="QFrame" name="fr_btns_edit">
                 <property name="frameShape">
@@ -1308,9 +1330,193 @@
                 <property name="frameShadow">
                  <enum>QFrame::Raised</enum>
                 </property>
+                <layout class="QHBoxLayout" name="horizontalLayout_12">
+                 <property name="spacing">
+                  <number>2</number>
+                 </property>
+                 <property name="leftMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="topMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="bottomMargin">
+                  <number>0</number>
+                 </property>
+                 <item>
+                  <widget class="QPushButton" name="btn_pl_edit_poz">
+                   <property name="text">
+                    <string>Изменение</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="btn_settings">
+                   <property name="text">
+                    <string>Настройка</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="btn_pl_add_poz">
+                   <property name="text">
+                    <string>Добавить</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="btn_pl_tabel">
+                   <property name="text">
+                    <string>Табель</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QCheckBox" name="chk_kpl_zaversch">
+                   <property name="toolTip">
+                    <string>Подгружать завершенные проекты</string>
+                   </property>
+                   <property name="text">
+                    <string>Завершенные</string>
+                   </property>
+                   <property name="checked">
+                    <bool>false</bool>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QDateEdit" name="de_vol_pl">
+                   <property name="maximumSize">
+                    <size>
+                     <width>133</width>
+                     <height>16777215</height>
+                    </size>
+                   </property>
+                   <property name="toolTip">
+                    <string>начало объемного ганта</string>
+                   </property>
+                   <property name="maximumTime">
+                    <time>
+                     <hour>23</hour>
+                     <minute>59</minute>
+                     <second>59</second>
+                    </time>
+                   </property>
+                   <property name="currentSection">
+                    <enum>QDateTimeEdit::MonthSection</enum>
+                   </property>
+                   <property name="displayFormat">
+                    <string>MMMM yyyy</string>
+                   </property>
+                   <property name="calendarPopup">
+                    <bool>true</bool>
+                   </property>
+                   <property name="date">
+                    <date>
+                     <year>2023</year>
+                     <month>1</month>
+                     <day>1</day>
+                    </date>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QLabel" name="label_3">
+                   <property name="minimumSize">
+                    <size>
+                     <width>24</width>
+                     <height>24</height>
+                    </size>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>24</width>
+                     <height>24</height>
+                    </size>
+                   </property>
+                   <property name="text">
+                    <string>Диапазон графика</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QDateEdit" name="de_vol_pl_end">
+                   <property name="maximumSize">
+                    <size>
+                     <width>133</width>
+                     <height>16777215</height>
+                    </size>
+                   </property>
+                   <property name="toolTip">
+                    <string>конец объемного ганта</string>
+                   </property>
+                   <property name="maximumTime">
+                    <time>
+                     <hour>23</hour>
+                     <minute>59</minute>
+                     <second>59</second>
+                    </time>
+                   </property>
+                   <property name="currentSection">
+                    <enum>QDateTimeEdit::MonthSection</enum>
+                   </property>
+                   <property name="displayFormat">
+                    <string>MMMM yyyy</string>
+                   </property>
+                   <property name="calendarPopup">
+                    <bool>true</bool>
+                   </property>
+                   <property name="date">
+                    <date>
+                     <year>2023</year>
+                     <month>1</month>
+                     <day>1</day>
+                    </date>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </widget>
+              </item>
+              <item>
+               <widget class="QTableWidget" name="tbl_filtr_kal_pl">
+                <property name="minimumSize">
+                 <size>
+                  <width>0</width>
+                  <height>66</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>66</height>
+                 </size>
+                </property>
+                <property name="verticalScrollBarPolicy">
+                 <enum>Qt::ScrollBarAlwaysOff</enum>
+                </property>
+                <property name="horizontalScrollBarPolicy">
+                 <enum>Qt::ScrollBarAlwaysOff</enum>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QFrame" name="fr_btn_manage">
+                <property name="minimumSize">
+                 <size>
+                  <width>0</width>
+                  <height>0</height>
+                 </size>
+                </property>
+                <property name="frameShape">
+                 <enum>QFrame::StyledPanel</enum>
+                </property>
+                <property name="frameShadow">
+                 <enum>QFrame::Raised</enum>
+                </property>
                 <layout class="QHBoxLayout" name="horizontalLayout_15">
                  <property name="spacing">
-                  <number>0</number>
+                  <number>1</number>
                  </property>
                  <property name="leftMargin">
                   <number>0</number>
@@ -1325,38 +1531,40 @@
                   <number>0</number>
                  </property>
                  <item>
-                  <layout class="QHBoxLayout" name="horizontalLayout_12">
-                   <property name="topMargin">
-                    <number>3</number>
-                   </property>
-                   <property name="bottomMargin">
-                    <number>3</number>
+                  <layout class="QHBoxLayout" name="horizontalLayout_9">
+                   <property name="spacing">
+                    <number>0</number>
                    </property>
                    <item>
-                    <widget class="QPushButton" name="btn_pl_edit_poz">
+                    <widget class="QPushButton" name="btn_pl_open_dir">
+                     <property name="minimumSize">
+                      <size>
+                       <width>22</width>
+                       <height>22</height>
+                      </size>
+                     </property>
                      <property name="text">
-                      <string>Изменение</string>
+                      <string>Открыть папку</string>
                      </property>
                     </widget>
                    </item>
                    <item>
-                    <widget class="QPushButton" name="btn_settings">
+                    <widget class="QPushButton" name="btn_pl_add_trbl">
+                     <property name="minimumSize">
+                      <size>
+                       <width>22</width>
+                       <height>22</height>
+                      </size>
+                     </property>
                      <property name="text">
-                      <string>Настройка</string>
+                      <string>Записать замечание</string>
                      </property>
                     </widget>
                    </item>
                    <item>
-                    <widget class="QPushButton" name="btn_pl_add_poz">
+                    <widget class="QPushButton" name="btn_pl_load_norm">
                      <property name="text">
-                      <string>Добавить</string>
-                     </property>
-                    </widget>
-                   </item>
-                   <item>
-                    <widget class="QPushButton" name="btn_pl_tabel">
-                     <property name="text">
-                      <string>Табель</string>
+                      <string>Подгрузить нормативы</string>
                      </property>
                     </widget>
                    </item>
@@ -1366,7 +1574,7 @@
                </widget>
               </item>
               <item>
-               <widget class="QSplitter" name="splitter_3">
+               <widget class="QSplitter" name="splitter_pl">
                 <property name="orientation">
                  <enum>Qt::Vertical</enum>
                 </property>
@@ -1386,6 +1594,21 @@
                   <enum>QFrame::Raised</enum>
                  </property>
                  <layout class="QHBoxLayout" name="horizontalLayout_17">
+                  <property name="spacing">
+                   <number>2</number>
+                  </property>
+                  <property name="leftMargin">
+                   <number>1</number>
+                  </property>
+                  <property name="topMargin">
+                   <number>1</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>1</number>
+                  </property>
+                  <property name="bottomMargin">
+                   <number>1</number>
+                  </property>
                   <item>
                    <layout class="QVBoxLayout" name="verticalLayout_35">
                     <item>
@@ -1617,7 +1840,7 @@
                <number>0</number>
               </property>
               <property name="topMargin">
-               <number>0</number>
+               <number>9</number>
               </property>
               <property name="rightMargin">
                <number>0</number>
@@ -1665,11 +1888,38 @@
               <enum>QFrame::Raised</enum>
              </property>
              <layout class="QVBoxLayout" name="verticalLayout_39">
+              <property name="spacing">
+               <number>1</number>
+              </property>
+              <property name="leftMargin">
+               <number>1</number>
+              </property>
+              <property name="topMargin">
+               <number>1</number>
+              </property>
+              <property name="rightMargin">
+               <number>1</number>
+              </property>
+              <property name="bottomMargin">
+               <number>1</number>
+              </property>
               <item>
                <widget class="QTableWidget" name="tbl_pl_gaf_filtr">
+                <property name="minimumSize">
+                 <size>
+                  <width>0</width>
+                  <height>55</height>
+                 </size>
+                </property>
                 <property name="maximumSize">
                  <size>
                   <width>16777215</width>
+                  <height>88</height>
+                 </size>
+                </property>
+                <property name="sizeIncrement">
+                 <size>
+                  <width>0</width>
                   <height>88</height>
                  </size>
                 </property>
@@ -1690,6 +1940,21 @@
               <enum>QFrame::Raised</enum>
              </property>
              <layout class="QVBoxLayout" name="verticalLayout_36">
+              <property name="spacing">
+               <number>11</number>
+              </property>
+              <property name="leftMargin">
+               <number>1</number>
+              </property>
+              <property name="topMargin">
+               <number>1</number>
+              </property>
+              <property name="rightMargin">
+               <number>1</number>
+              </property>
+              <property name="bottomMargin">
+               <number>11</number>
+              </property>
               <item>
                <widget class="QTableWidget" name="tbl_pl_gaf_svod">
                 <property name="maximumSize">
@@ -1700,43 +1965,61 @@
                 </property>
                </widget>
               </item>
+              <item>
+               <widget class="QTableWidget" name="tbl_pl_gaf_svod_percent"/>
+              </item>
              </layout>
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="btn_show_svod">
-             <property name="maximumSize">
-              <size>
-               <width>16777215</width>
-               <height>20</height>
-              </size>
-             </property>
-             <property name="text">
-              <string>Сводка</string>
-             </property>
-            </widget>
+            <layout class="QHBoxLayout" name="horizontalLayout_18">
+             <item>
+              <widget class="QPushButton" name="btn_save_pl">
+               <property name="text">
+                <string>Сохранить план</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btn_show_svod">
+               <property name="maximumSize">
+                <size>
+                 <width>16777215</width>
+                 <height>2022</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>Сводка</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
            </item>
           </layout>
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="btn_pl_mode">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="maximumSize">
-           <size>
-            <width>33</width>
-            <height>16777215</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>График</string>
-          </property>
-         </widget>
+         <layout class="QVBoxLayout" name="verticalLayout_41">
+          <item>
+           <widget class="QPushButton" name="btn_pl_mode">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>33</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>График</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
        </layout>
       </widget>
@@ -1846,7 +2129,7 @@
         <item>
          <widget class="QTabWidget" name="tabWidget_4">
           <property name="currentIndex">
-           <number>0</number>
+           <number>3</number>
           </property>
           <widget class="QWidget" name="tab_13">
            <attribute name="title">
@@ -2207,6 +2490,25 @@
      </property>
      <addaction name="separator"/>
     </widget>
+    <widget class="QMenu" name="menu_4">
+     <property name="title">
+      <string>Планирование</string>
+     </property>
+     <widget class="QMenu" name="menu_5">
+      <property name="title">
+       <string>Масштаб</string>
+      </property>
+      <addaction name="action18_px"/>
+      <addaction name="action16_px"/>
+      <addaction name="action14_px"/>
+      <addaction name="action12_px"/>
+      <addaction name="action10_px"/>
+      <addaction name="action8_px"/>
+      <addaction name="action6_px"/>
+      <addaction name="action4_px"/>
+     </widget>
+     <addaction name="menu_5"/>
+    </widget>
     <addaction name="action_XML"/>
     <addaction name="action_mat"/>
     <addaction name="action_mat_tk"/>
@@ -2218,6 +2520,10 @@
     <addaction name="menu_3"/>
     <addaction name="separator"/>
     <addaction name="action_plan_date"/>
+    <addaction name="action_load_plan"/>
+    <addaction name="menu_4"/>
+    <addaction name="separator"/>
+    <addaction name="action_opn_dir_mk"/>
    </widget>
    <addaction name="menu"/>
   </widget>
@@ -2270,6 +2576,59 @@
   <action name="action_plan_date">
    <property name="text">
     <string>Проставить даты по плану</string>
+   </property>
+  </action>
+  <action name="action_load_plan">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Загрузить план из эксель</string>
+   </property>
+  </action>
+  <action name="action18_px">
+   <property name="text">
+    <string>18 px</string>
+   </property>
+  </action>
+  <action name="action16_px">
+   <property name="text">
+    <string>16 px</string>
+   </property>
+  </action>
+  <action name="action14_px">
+   <property name="text">
+    <string>14 px</string>
+   </property>
+  </action>
+  <action name="action12_px">
+   <property name="text">
+    <string>12 px</string>
+   </property>
+  </action>
+  <action name="action10_px">
+   <property name="text">
+    <string>10 px</string>
+   </property>
+  </action>
+  <action name="action8_px">
+   <property name="text">
+    <string>8 px</string>
+   </property>
+  </action>
+  <action name="action6_px">
+   <property name="text">
+    <string>6 px</string>
+   </property>
+  </action>
+  <action name="action4_px">
+   <property name="text">
+    <string>4 px</string>
+   </property>
+  </action>
+  <action name="action_opn_dir_mk">
+   <property name="text">
+    <string>Открыть заявку на производство</string>
    </property>
   </action>
  </widget>

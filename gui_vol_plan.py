@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import datetime
 
@@ -7,12 +9,46 @@ import project_cust_38.Cust_SQLite  as CSQ
 import kal_plan as KPL
 import gui_kal_plan as GKPL
 import project_cust_38.Cust_mes as CMS
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from MKart import mywindow
+
 @CQT.onerror
-def load_tbl_gant(self):
-    def load_tabels(self):
+def save_kpl_plan(self):
+    if self.dict_form_kpl == "":
+        CQT.msgbox(f'План не сформирован')
+        return
+    path = CMS.load_tmp_path('kpl_vol_plan')
+    pathf = path + F.sep() + F.now("KPL%Y_%m_%d") + '.pickle'
+    pathf = CQT.f_dialog_save(self,'Сохранить план', pathf, "*.pickle")
+    if pathf == '.':
+        return
+    F.save_file_pickle(pathf,self.dict_form_kpl)
+    F.otkr_papky(CMS.save_tmp_path('kpl_vol_plan',pathf,True))
+
+
+
+def hover_tbl_pl_gaf_svod(self, event):
+    tbl = self.ui.tbl_pl_gaf_svod
+    row, column = CQT.get_hover_row_col(self, tbl, event)
+    if row == False or column == False:
+        return
+    val = tbl.item(row, column).text()
+    if val != '':
+        set_tooltip_val(self, tbl, row, column)
+    else:
+        set_tooltip_val(self, tbl, row, column, True)
+
+
+@CQT.onerror
+@F.vrem_vip_cls_func_args
+def load_tbl_gant(self:mywindow):
+    def load_tabels(self:mywindow) -> dict:
         tbls = []
         tbl = self.ui.tbl_kal_pl
         nk_pnom = CQT.nom_kol_po_imen(tbl,'plan.Пномер')
+        nk_local_graf = CQT.nom_kol_po_imen(tbl, 'plan.local_graf')
         for i in range(tbl.rowCount()):
             if not tbl.isRowHidden(i):
                 tbls.append(tbl.item(i,nk_pnom).text())
@@ -23,15 +59,26 @@ def load_tbl_gant(self):
          WHERE plan.Пномер in ({','.join(tbls)}) ORDER BY plan.Приоритет DESC""",rez_dict=True)
         if query == False or len(query) == 0:
             return False
+        for item in query:
+            if item['local_graf'] == '':
+                datat_bin = GKPL.update_local_graf(self, True, int(item['Пномер']), False)
+                print(f"Создан локальный график на {item['Пномер']}")
+                #tbl.item(i, nk_local_graf).setText(str(datat_bin))
         return query
-    def generate_full_table(self,query):
+
+    def generate_full_table(self,query:dict):
         set_dates = set()
         dict_dates_vals = dict()
         for item in query:
             tbl_gant = F.from_binary_pickle(item['local_graf'])
-            for date in tbl_gant[0]['data'].keys():
-                set_dates.add(date)
-                dict_dates_vals[date] = {'Выходные':tbl_gant[0]['data'][date]['Выходные'],'День недели':tbl_gant[0]['data'][date]['День недели']}
+            if tbl_gant == None:
+                CQT.msgbox(f'Пномер {item["Пномер"]}, №проекта {item["№проекта"]} - Не сформирован локальный график')
+            try:
+                for date in tbl_gant[0]['data'].keys():
+                    set_dates.add(date)
+                    dict_dates_vals[date] = {'Выходные':tbl_gant[0]['data'][date]['Выходные'],'День недели':tbl_gant[0]['data'][date]['День недели']}
+            except:
+                CQT.msgbox(f'Ошибка генерации{str(tbl_gant[0])}')
         list_dates = list(set_dates)
         list_dates = sorted(list_dates)
         dict_form = []
@@ -75,18 +122,23 @@ def show_svod(self):
         self.ui.fr_pl_gaf.setHidden(True)
         self.ui.fr_svod.setHidden(False)
         load_svod(self)
+        load_svod_percent(self)
 
 
 
-def set_tooltip_val(self):
-    tbls = self.ui.tbl_pl_gaf_svod
+def set_tooltip_val(self,tbls='',r='',c='',clear=False):
+    if tbls == "":
+        tbls = self.ui.tbl_pl_gaf_svod
+    if clear:
+        CQT.statusbar_text(self, '')
+        tbls.setToolTip('')
+        return
     KPL.summ_selct_tbl(self,tbls)
-    max_mosh, podr, date_tmp = get_max_mosh_frow_tbl(self)
+    max_mosh, podr, date_tmp = get_max_mosh_frow_tbl(self,r,c)
     info = f'Максимальная мощность {podr} на {date_tmp} : {max_mosh} н-ч.'
     tbls.setToolTip(info)
-    msg = self.statusBar().currentMessage()
     CQT.statusbar_text(self,
-                       f'{msg} |  {info}')
+                       f'{self.glob_kpl_summ_selct_tbl} |  {info}')
 
 def get_max_mosh_frow_tbl(self,i='',j=''):
     tbls = self.ui.tbl_pl_gaf_svod
@@ -106,6 +158,54 @@ def get_max_mosh_frow_tbl(self,i='',j=''):
     except:
         pass
     return max_mosh, podr, date_tmp
+
+@CQT.onerror
+def oform_tbl_svod_percent(self:mywindow, rez_list:list =''):
+    tbls = self.ui.tbl_pl_gaf_svod_percent
+    if rez_list == '':
+        rez_list = CQT.spisok_iz_wtabl(tbls, shapka=True)
+    count_tbl_field = 5
+    tbl = self.ui.tbl_pl_gaf
+    for j in range(1, count_tbl_field):  # HORIZONTAL HEADER TABLE FIELDS
+        CQT.ust_color_text_header_wtab_horisontal(tbls, j, 11, 11, 11, self.val_masht * 0.9, False)
+        for i in range(1, len(rez_list)):
+            CQT.font_cell_size_format(tbls, i - 1, j, self.val_masht)
+    for j in range(count_tbl_field, len(rez_list[0])):  # HORIZONTAL HEADER GANT FIELDS
+        if self.list_tbl_info[1][j] == 1:
+            CQT.ust_color_text_header_wtab_horisontal(tbls, j, 200, 11, 11, self.val_masht * 0.8, True)
+        else:
+            CQT.ust_color_text_header_wtab_horisontal(tbls, j, 11, 11, 11, self.val_masht * 0.7, False)
+            # CQT.ust_color_text_header_wtab_horisontal(tbls, j, 11, 11, 11, self.val_masht * 0.8, False)
+        for i in range(1, len(rez_list)):
+            CQT.font_cell_size_format(tbls, i - 1, j, self.val_masht * 0.8)
+
+    for i in range(1, len(rez_list)):
+        napr = rez_list[i][0]
+        val = 0
+        r, g, b = 10,10,10
+        for key in self.data_kpl.DICT_NAPRAVLENIE:
+            if self.data_kpl.DICT_NAPRAVLENIE[key]['name'] == napr:
+                val = self.data_kpl.DICT_NAPRAVLENIE[key]['val']
+                r, g ,b = self.data_kpl.DICT_NAPRAVLENIE[key]['Цвет'].split(';')
+                break
+        for j in range(count_tbl_field, len(rez_list[0])):
+            if rez_list[i][j] > (val + 20) or rez_list[i][j] < (val - 20):
+                CQT.ust_font_color_wtab(tbls, i - 1, j, 244, 244, 244)
+                CQT.ust_color_wtab(tbls, i - 1, j, 233, 33, 33)
+        CQT.ust_color_text_header_wtab_vertical(tbls, i - 1, r, g, b, self.val_masht * 0.8, True)
+        if rez_list[i][4] > (val + 20) or rez_list[i][4] < (val - 20):
+            CQT.ust_font_color_wtab(tbls, i - 1, 4, 244, 244, 244)
+            CQT.ust_color_wtab(tbls, i - 1, 4, 233, 33, 33)
+        CQT.font_cell_size_format(tbls, i - 1, 4,0,True)
+
+    CMS.update_width_filtr(tbl, tbls)
+    fields_hide = ['Этап', 'Пномер', "Проект", "Поз."]
+    for field in fields_hide:
+        try:
+            tbls.setColumnHidden(CQT.nom_kol_po_imen(tbls, field), True)
+        except:
+            pass
+
 
 
 def oform_tbl_svod(self,rez_list:list =''):
@@ -138,8 +238,8 @@ def oform_tbl_svod(self,rez_list:list =''):
                 r = 233
                 g = 233
                 b = 233
-                if podr in self.DICT_PODR:
-                    r, g, b = self.DICT_PODR[podr]['Цвет'].split(";")
+                if podr in self.data_kpl.DICT_PODR:
+                    r, g, b = self.data_kpl.DICT_PODR[podr]['Цвет'].split(";")
                 CQT.dob_color_wtab(tbls, i - 1, j, int(r), int(g), int(b))
             else:
                 CQT.ust_font_color_wtab(tbls, i - 1, j, 233, 233, 233)
@@ -149,8 +249,8 @@ def oform_tbl_svod(self,rez_list:list =''):
         r = 233
         g = 233
         b = 233
-        if podr in self.DICT_PODR:
-            r, g, b = self.DICT_PODR[podr]['Цвет'].split(";")
+        if podr in self.data_kpl.DICT_PODR:
+            r, g, b = self.data_kpl.DICT_PODR[podr]['Цвет'].split(";")
         CQT.ust_color_text_header_wtab_vertical(tbls, i - 1, r, g, b, self.val_masht * 0.8, True)
 
 
@@ -265,6 +365,55 @@ def get_max_mosh_from_db(self):
                     dict_days[F.strtodate(dict_month[0][i],'d_%Y_%m_%d')] = dict_day
     self.KPLAN_max_mosh = dict_days
 
+@CQT.onerror
+def load_svod_percent(self:mywindow):
+    tbl = self.ui.tbl_pl_gaf
+    tbls = self.ui.tbl_pl_gaf_svod_percent
+    rez_list = [copy.deepcopy(self.list_tbl[0])]
+    set_napr = set()
+    nk_napr = F.nom_kol_po_im_v_shap(self.list_tbl, 'Напр.')
+    for i in range(3, len(self.list_tbl)):
+        if not self.ui.tbl_pl_gaf.isRowHidden(i - 1):
+            set_napr.add(self.list_tbl[i][nk_napr])
+    list_napr = sorted(set_napr)
+    for napr in list_napr:
+        tmp_row = [napr, '', '', '', '']
+        for j in range(5, len(self.list_tbl[0])):
+            summ_chas = 0
+            for i in range(3, len(self.list_tbl)):
+                if self.list_tbl[i][nk_napr] == napr:
+                    if not self.ui.tbl_pl_gaf.isRowHidden(i - 1):
+                        if self.list_tbl[i][j] != '':
+                            summ_vol = 0
+                            for oper in self.list_tbl_info[i][j]:
+                                vol = oper['Время_час']
+                                summ_vol += vol
+                            summ_chas += summ_vol
+            tmp_row.append(round(summ_chas))
+        rez_list.append(tmp_row)
+    rez_list[0][4]='Среднее'
+    for i in range(1, len(rez_list)):
+        rez_list[i][4] = 0
+    for j in range(5,len(rez_list[0])):
+        summ = 0
+        for i in range(1,len(rez_list)):
+            summ+= F.valm(rez_list[i][j])
+        for i in range(1,len(rez_list)):
+            if not summ == 0:
+                rez_list[i][4] += rez_list[i][j]
+                rez_list[i][j] = round(F.valm(rez_list[i][j])/summ*100)
+    summ = 0
+    for i in range(1, len(rez_list)):
+        summ += F.valm(rez_list[i][4])
+    for i in range(1,len(rez_list)):
+        rez_list[i][4] =round(F.valm(rez_list[i][4])/summ*100)
+
+    CQT.fill_wtabl(rez_list, tbls, min_width_col=int(4 * 0.8),
+                   height_row=self.val_masht * 2, colorful_edit=False, auto_type=False, head_column=0,
+                   set_editeble_col_nomera={}, hide_head_column=False)
+    oform_tbl_svod_percent(self, rez_list)
+
+
 def load_svod(self):
     tbl = self.ui.tbl_pl_gaf
     tbls =  self.ui.tbl_pl_gaf_svod
@@ -289,15 +438,23 @@ def load_svod(self):
                         summ_chas += summ_vol
             tmp_row.append(round(summ_chas))
         rez_list.append(tmp_row)
-    CQT.fill_wtabl(rez_list, tbls, min_width_col=self.ui.sl_mash_local.minimum() * 0.8,
+    CQT.fill_wtabl(rez_list, tbls, min_width_col= int( 4 * 0.8),
                    height_row=self.val_masht * 2, colorful_edit=False, auto_type=False, head_column=0,
                    set_editeble_col_nomera={}, hide_head_column=False)
-    get_max_mosh_from_db(self)
     oform_tbl_svod(self,rez_list)
 
 
+def save_diapazon_month(self: mywindow):
+    str_d = F.datetostr(self.ui.de_vol_pl.date().toPyDate()) + ';' + F.datetostr(self.ui.de_vol_pl_end.date().toPyDate())
+    CMS.save_tmp_path('pl_diapazon_month',str_d)
 
-
+def load_diapazon_month(self: mywindow):
+    try:
+        list_str_d =  CMS.load_tmp_path('pl_diapazon_month').split(';')
+        self.ui.de_vol_pl.setDate(F.strtodate(list_str_d[0]))
+        self.ui.de_vol_pl_end.setDate(F.strtodate(list_str_d[1]))
+    except:
+        pass
 
 #TODO двойным кликом тянуть в фильтр
 

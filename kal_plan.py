@@ -1,5 +1,6 @@
-import copy
+from __future__ import annotations
 
+import copy
 import project_cust_38.Cust_Functions as F
 import project_cust_38.Cust_SQLite as CSQ
 import project_cust_38.Cust_Qt as CQT
@@ -9,14 +10,487 @@ import gui_kal_plan as GPL
 import gui_vol_plan as VPL
 
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from MKart import mywindow
+
+
 LIST_FREEZE_FIELDS = ['plan.Пномер','plan.Направление_деятельности','plan.local_graf']
 LIST_HIDE_FIELDS = ['plan.local_graf']
 
+def import_exel_plan(self:mywindow):
+    return
+    lists = F.otkr_f(r'O:\Журналы и графики\Ведомости для передачи\plan_etapi\tbl.txt',False,'|')
+    list_of_dicts = F.list_of_lists_to_list_of_dicts(lists)
+    list_plan = []
+    list_oyp = []
+    list_ko = []
+    list_top = []
+    list_zag = []
+    list_kompl = []
+    list_meh = []
+    list_sb = []
+    list_pokr = []
+    list_otk = []
 
+    pnom = 0
+    try:
+        pnom = CSQ.posl_strok_bd(self.db_kplan, 'plan', 'Пномер', ['Пномер'])[0]
+    except:
+        pass
+    for item in list_of_dicts:
+        nom_mk = item['plan.МК'].lower().replace('нет','0')
+        pnom+=1
+        tmp_plan = [pnom,F.datetostr(F.strtodate(item['plan.Дата_внесения'],'%d.%m.%Y'),'%Y-%m-%d')
+                    ,str(item['plan.Позиция'])
+                    ,self.data_kpl.DICT_NAPR_DEYAT_NAME[item['plan.Направление_деятельности']]['Пномер']
+                    ,self.data_kpl.DICT_STATUS_POZ_NAME[item['plan.Статус']]['Пномер']
+                    , 0
+                    ,int(nom_mk)
+                    , 0
+                    , ''
+                    , ''
+                    , 0
+                    , ''
+                    , ''
+                    ,0
+                    ,''
+                    , ''
+                    ,0
+                    , ''
+                    , ''
+                    , 0
+                    , ''
+                    , ''
+                    , 0
+                    , ''
+                    , ''
+                    ,0
+                    ,self.data_kpl.DICT_STATUS_ETAPI_ERP_NAME[item['plan.Этапы_ЕРП'].capitalize()]['Пномер']
+                    ,item['plan.Примечание']
+                    ,9999]
+        tmp_oyp = [pnom,
+                    item['пл_оуп.Дата_заявки'],
+                    item['пл_оуп.№проекта'],
+                    item['пл_оуп.№ERP'],
+                    item['пл_оуп.Дата_отгрузки_ПУ'],
+                    int(item['пл_оуп.Количество']),
+                    '',
+                    item['пл_оуп.Номенклатура_ЕРП']]
+        date_f_kd = ''
+        if F.is_date(item['пл_ко.Фдата_зав_КД'], '%d.%m.%Y'):
+            date_f_kd = F.datetostr(F.strtodate(item['пл_ко.Фдата_зав_КД'], '%d.%m.%Y'), '%Y-%m-%d')
+        tmp_ko = [pnom,
+                    0,
+                    '',
+                    '',
+                    '',
+                    date_f_kd,
+                    F.valm(item['пл_ко.Вес_КД']),
+                    item['пл_ко.Ссылка_КД']]
+        date_spec = ''
+        if F.is_date(item['пл_топ.Спецификация_дата'],'%d.%m.%Y'):
+            date_spec = F.datetostr(F.strtodate(item['пл_топ.Спецификация_дата'],'%d.%m.%Y'),'%Y-%m-%d')
+        date_zav_td = ''
+        if F.is_date(item['пл_топ.Пдата_зав_ТД'],'%d.%m.%Y'):
+            date_zav_td = F.datetostr(F.strtodate(item['пл_топ.Пдата_зав_ТД'],'%d.%m.%Y'),'%Y-%m-%d')
+        date_zav_f_td = ''
+        if F.is_date(item['пл_топ.Фдата_зав_ТД'],'%d.%m.%Y'):
+            date_zav_f_td = F.datetostr(F.strtodate(item['пл_топ.Фдата_зав_ТД'],'%d.%m.%Y'),'%Y-%m-%d')
+        tmp_top = [pnom,
+                    self.data_kpl.DICT_VID_PO_NAPR_NAME[item['пл_топ.Вид']]['Пномер'],
+                    item['пл_топ.Отв_технолог'],
+                    0,
+                    0,
+                   0,
+                   '',
+                   '',
+                   0,
+                   '',
+                   '',
+                   0,
+                   '',
+                   '',
+                   0,
+                   '',
+                   '',
+                    '',
+                    '',
+                    0,
+                    F.valm(item['пл_топ.Число_ДСЕ']),
+                    item['пл_топ.Дата_МК'],
+                    item['пл_топ.Спецификация_ЕРП'],
+                   0,
+                   '',
+                   '',
+                   0,
+                   '',
+                    date_spec,
+                    date_zav_td,
+                    date_zav_f_td,
+                   0,
+                   0]
+        pl_dat_n_zag = ''
+        if F.is_date(item['пл_заг.ПДата_нач_заг'], '%d.%m.%Y'):
+            pl_dat_n_zag = F.datetostr(F.strtodate(item['пл_заг.ПДата_нач_заг'],'%d.%m.%Y'),'%Y-%m-%d')
+        pl_dat_z_zag = ''
+        if F.is_date(item['пл_заг.ПДата_зав_заг'], '%d.%m.%Y'):
+            pl_dat_z_zag = F.datetostr(F.strtodate(item['пл_заг.ПДата_зав_заг'],'%d.%m.%Y'),'%Y-%m-%d')
+        tmp_zag = [pnom,
+                    F.valm(item['пл_заг.Нчас_заг']),
+                    0,
+                    pl_dat_n_zag,
+                    pl_dat_z_zag,
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',]
+        tmp_kompl = [pnom,
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    0,
+                    0,
+                    '',
+                    '']
+        pl_dat_n_meh = ''
+        if F.is_date(item['пл_мех.Пдата_нач_мехобр'], '%d.%m.%Y'):
+            pl_dat_n_meh = F.datetostr(F.strtodate(item['пл_мех.Пдата_нач_мехобр'], '%d.%m.%Y'), '%Y-%m-%d')
+        pl_dat_z_meh = ''
+        if F.is_date(item['пл_мех.Пдата_зав_мехобр'], '%d.%m.%Y'):
+            pl_dat_z_meh = F.datetostr(F.strtodate(item['пл_мех.Пдата_зав_мехобр'], '%d.%m.%Y'), '%Y-%m-%d')
+        tmp_meh = [pnom,
+                    F.valm(item['пл_мех.Нчас_мехобр']),
+                    0,
+                    pl_dat_n_meh,
+                    pl_dat_z_meh,
+                    '',
+                    '']
+        pl_dat_n_sb = ''
+        if F.is_date(item['пл_сб.Пдата_нач_сб'], '%d.%m.%Y'):
+            pl_dat_n_sb = F.datetostr(F.strtodate(item['пл_сб.Пдата_нач_сб'], '%d.%m.%Y'), '%Y-%m-%d')
+        pl_dat_z_sb = ''
+        if F.is_date(item['пл_сб.Пдата_зав_сб'], '%d.%m.%Y'):
+            pl_dat_z_sb = F.datetostr(F.strtodate(item['пл_сб.Пдата_зав_сб'], '%d.%m.%Y'), '%Y-%m-%d')
+        tmp_sb = [pnom,
+                    F.valm(item['пл_сб.Нчас_сб']),
+                    0,
+                    pl_dat_n_sb,
+                    pl_dat_z_sb,
+                  '',
+                  '']
+        pl_dat_n_pokr = ''
+        if F.is_date(item['пл_покр.Пдата_нач_покр'], '%d.%m.%Y'):
+            pl_dat_n_pokr = F.datetostr(F.strtodate(item['пл_покр.Пдата_нач_покр'], '%d.%m.%Y'), '%Y-%m-%d')
+        pl_dat_z_pokr = ''
+        if F.is_date(item['пл_покр.Пдата_зав_покр'], '%d.%m.%Y'):
+            pl_dat_z_pokr = F.datetostr(F.strtodate(item['пл_покр.Пдата_зав_покр'], '%d.%m.%Y'), '%Y-%m-%d')
+        tmp_pokr = [pnom,
+                    F.valm(item['пл_покр.Нчас_покр']),
+                    0,
+                    pl_dat_n_pokr,
+                    pl_dat_z_pokr,
+                    '',
+                    '']
+        tmp_otk = [pnom,
+                    0,
+                    '',
+                    '',
+                    '',
+                    '',
+                    0,]
+
+        
+        list_plan.append(tmp_plan)
+        list_oyp.append(tmp_oyp)
+        list_ko.append(tmp_ko)
+        list_top.append(tmp_top)
+        list_zag.append(tmp_zag)
+        list_kompl.append(tmp_kompl)
+        list_meh.append(tmp_meh)
+        list_sb.append(tmp_sb)
+        list_pokr.append(tmp_pokr)
+        list_otk.append(tmp_otk)
+
+    quest = ','.join(['?' for _ in list_plan[0]])
+    CSQ.zapros(self.db_kplan, f"""INSERT INTO plan(
+    Пномер, 
+Дата_внесения, 
+Позиция, 
+Направление_деятельности, 
+Статус, 
+Статус_норм, 
+МК, 
+Нчас_заявка_мат, 
+Пдата_нач_заявка_мат, 
+Пдата_зав_заявка_мат, 
+Фчас_заявка_мат, 
+Фдата_нач_заявка_мат, 
+Фдата_зав_заявка_мат, 
+Нчас_заявка_аутсорс, 
+Пдата_нач_заявка_аутсорс, 
+Пдата_зав_заявка_аутсорс, 
+Фчас_заявка_аутсорс, 
+Фдата_нач_заявка_аутсорс, 
+Фдата_зав_заявка_аутсорс, 
+Нчас_вспом, 
+Пдата_нач_вспом, 
+Пдата_зав_вспом, 
+Фчас_вспом, 
+Фдата_нач_вспом, 
+Фдата_зав_вспом, 
+Фчас_доп_раб, 
+Этапы_ЕРП, 
+Примечание, 
+Приоритет
+        )
+        VALUES ({quest});""", spisok_spiskov=list_plan)
+
+    quest = ','.join(['?' for _ in list_oyp[0]])
+    CSQ.zapros(self.db_kplan, f"""INSERT INTO пл_оуп(
+        НомПл, 
+Дата_заявки, 
+№проекта, 
+№ERP, 
+Дата_отгрузки_ПУ, 
+Количество, 
+ПКК, 
+Номенклатура_ЕРП 
+            )
+            VALUES ({quest});""", spisok_spiskov=list_oyp)
+
+    quest = ','.join(['?' for _ in list_ko[0]])
+    CSQ.zapros(self.db_kplan, f"""INSERT INTO пл_ко(
+        НомПл, 
+        Вес_ВО, 
+        Пдата_нач_КД, 
+        Фдата_нач_КД, 
+        Пдата_зав_КД, 
+        Фдата_зав_КД, 
+        Вес_КД, 
+        Ссылка_КД 
+            )
+            VALUES ({quest});""", spisok_spiskov=list_ko)
+
+    quest = ','.join(['?' for _ in list_top[0]])
+    CSQ.zapros(self.db_kplan, f"""INSERT INTO пл_топ(
+              НомПл, 
+        Вид, 
+        Отв_технолог, 
+        Уд_вес_ВО, 
+        Нчас_сб_ВО, 
+        Нчас_Тсогл1, 
+        Пдата_нач_Тсогл1, 
+        Пдата_зав_Тсогл1, 
+        Фчас_Тсогл1, 
+        Фдата_нач_Тсогл1, 
+        Фдата_зав_Тсогл1, 
+        Нчас_Тсогл2, 
+        Пдата_нач_Тсогл2, 
+        Пдата_зав_Тсогл2, 
+        Фчас_Тсогл2, 
+        Фдата_нач_Тсогл2, 
+        Фдата_зав_Тсогл2, 
+        Пдата_нач_ТД, 
+        Фдата_нач_ТД, 
+        Нчас_ТД, 
+        Число_ДСЕ, 
+        Дата_МК, 
+        Спецификация_ЕРП, 
+        Нчас_спецЕРП, 
+        Пдата_нач_спецЕРП, 
+        Пдата_зав_спецЕРП, 
+        Фчас_спецЕРП, 
+        Фдата_нач_спецЕРП, 
+        Фдата_зав_спецЕРП, 
+        Пдата_зав_ТД, 
+        Фдата_зав_ТД, 
+        Фчас_ТД, 
+        Аутосорс_ТП
+                    )
+            VALUES ({quest});""", spisok_spiskov=list_top)
+
+
+    quest = ','.join(['?' for _ in list_zag[0]])
+    CSQ.zapros(self.db_kplan, f"""INSERT INTO пл_заг(
+       НомПл, 
+        Нчас_заг, 
+        Фчас_заг, 
+        ПДата_нач_заг,  
+        ПДата_зав_заг, 
+        ФДата_раскладки, 
+        ФДата_резки, 
+        ФДата_г_ш, 
+        ФДата_нач_заг, 
+        ФДата_зав_заг 
+                    )
+            VALUES ({quest});""", spisok_spiskov=list_zag)
+
+    quest = ','.join(['?' for _ in list_kompl[0]])
+    CSQ.zapros(self.db_kplan, f"""INSERT INTO пл_компл(
+            НомПл, 
+            Дата_комплект_после_заг, 
+            Дата_комплект_под_мех, 
+            Дата_комплект_под_сб, 
+            Дата_комплект_под_покр, 
+            Дата_комплект_под_упак, 
+            ПДата_нач_комплект_упаковки, 
+            ПДата_зав_комплект_упаковки, 
+            Нчас_упаковки, 
+            Фчас_упаковки, 
+            ФДата_нач_комплект_упаковки, 
+            ФДата_зав_комплект_упаковки 
+                        )
+                VALUES ({quest});""", spisok_spiskov=list_kompl)
+
+    quest = ','.join(['?' for _ in list_meh[0]])
+    CSQ.zapros(self.db_kplan, f"""INSERT INTO пл_мех(
+                    НомПл, 
+                Нчас_мехобр, 
+                Фчас_мехобр, 
+                Пдата_нач_мехобр, 
+                Пдата_зав_мехобр, 
+                Фдата_нач_мехобр, 
+                Фдата_зав_мехобр 
+                            )
+                    VALUES ({quest});""", spisok_spiskov=list_meh)
+
+    quest = ','.join(['?' for _ in list_sb[0]])
+    CSQ.zapros(self.db_kplan, f"""INSERT INTO пл_сб(
+                НомПл, 
+                Нчас_сб, 
+                Фчас_сб, 
+                Пдата_нач_сб, 
+                Пдата_зав_сб, 
+                Фдата_нач_сб, 
+                Фдата_зав_сб 
+                            )
+                    VALUES ({quest});""", spisok_spiskov=list_sb)
+
+    quest = ','.join(['?' for _ in list_pokr[0]])
+    CSQ.zapros(self.db_kplan, f"""INSERT INTO пл_покр(
+                НомПл, 
+                Нчас_покр, 
+                Фчас_покр, 
+                Пдата_нач_покр, 
+                Пдата_зав_покр, 
+                Фдата_нач_покр, 
+                Фдата_зав_покр 
+                            ) 
+                    VALUES ({quest});""", spisok_spiskov=list_pokr)
+
+
+    quest = ','.join(['?' for _ in list_otk[0]])
+    CSQ.zapros(self.db_kplan, f"""INSERT INTO пл_отк(
+                    НомПл, 
+                    Нчас_контр, 
+                    Пдата_нач_контр, 
+                    Пдата_зав_контр, 
+                    Фдата_нач_контр, 
+                    Фдата_зав_контр, 
+                    Итог_контр 
+                            )
+                    VALUES ({quest});""", spisok_spiskov=list_otk)
+
+
+@CQT.onerror
+def btn_pl_open_dir(self:mywindow):
+    tbl = self.ui.tbl_kal_pl
+    if tbl.currentRow() == -1:
+        return
+    nk_np = CQT.nom_kol_po_imen(tbl,'пл_оуп.№проекта')
+    nk_py = CQT.nom_kol_po_imen(tbl, 'пл_оуп.№ERP')
+    np = tbl.item(tbl.currentRow(),nk_np).text()
+    py = tbl.item(tbl.currentRow(), nk_py).text()
+    path = CMS.Put_k_papke_s_proektom_NPPU(np,py,True)
+    F.otkr_papky(path)
+
+def btn_pl_add_trbl(self:mywindow):
+    tbl = self.ui.tbl_kal_pl
+    if tbl.currentRow() == -1:
+        return
+    nk_mk = CQT.nom_kol_po_imen(tbl, 'plan.МК')
+    mk = tbl.item(tbl.currentRow(), nk_mk).text()
+    if mk == '0':
+        CQT.msgbox(f'МК не создана')
+        return
+    self.ui.tabWidget.setCurrentIndex(CQT.nom_tab_po_imen(self.ui.tabWidget, 'Замечания по МК'))
+    tbl_zam = self.ui.tbl_zamech_add_field
+    nk_mk_zam = CQT.nom_kol_po_imen(tbl_zam, 'МК')
+    tbl_zam.item(0,nk_mk_zam).setText(mk)
+
+def btn_pl_load_norm(self:mywindow):
+    def fill_norm_db(self,dict_norm,pnom):
+        for key in dict_norm:
+            norma = round(dict_norm[key]/60,2)
+            tbl, field = key.split('.')
+            if tbl == 'plan':
+                ind_field = 'Пномер'
+            else:
+                ind_field = 'НомПл'
+            CSQ.zapros(self.db_kplan,f"""UPDATE {tbl} SET {field} = {norma} WHERE {ind_field} = {pnom} """)
+
+
+    def load_norm_vo(self,pnom:int,dict_norm:dict):
+        item = CSQ.zapros(self.db_kplan,f"""SELECT * FROM пл_топ WHERE НомПл == {nk_pnom}""",one=True,rez_dict=True)
+        if item['Уд_вес_ВО'] == '':
+            CQT.msgbox(f'Не указан Уд_вес_ВО')
+            return
+        if item['Вид'] == 1:
+            CQT.msgbox(f'Не выбран Вид изделия')
+            return
+        CQT.msgbox(f'В разаротбке')
+        return
+
+    tbl = self.ui.tbl_kal_pl
+    if tbl.currentRow() == -1:
+        return
+    nk_mk = CQT.nom_kol_po_imen(tbl, 'plan.МК')
+    mk = tbl.item(tbl.currentRow(), nk_mk).text()
+    dict_norm = {'plan.Нчас_вспом': 0,
+                 'пл_заг.Нчас_заг': 0,
+                 'пл_компл.Нчас_упаковки': 0,
+                 'пл_мех.Нчас_мехобр': 0,
+                 'пл_отк.Нчас_контр': 0,
+                 'пл_покр.Нчас_покр': 0,
+                 'пл_сб.Нчас_сб': 0, }
+    nk_pnom = CQT.nom_kol_po_imen(tbl, 'plan.Пномер')
+    pnom = int(tbl.item(tbl.currentRow(), nk_pnom).text())
+    nk_stat_norm = CQT.nom_kol_po_imen(tbl, 'plan.Статус_норм')
+    if mk == '0':
+        if not CQT.msgboxgYN(f'МК не создана, загрузить нормы по ВО?'):
+            return
+        dict_norm = load_norm_vo(self,pnom,dict_norm)
+        if dict_norm == None:
+            return
+        CSQ.zapros(self.db_kplan, f"""UPDATE plan SET Статус_норм = 1 WHERE Пномер = {pnom} """)
+        if nk_stat_norm:
+            tbl.item(tbl.currentRow(), nk_stat_norm).setText(self.data_kpl.DICT_STATUS_NORM[1])
+    else:
+        res = CMS.load_res(int(mk))
+        for dse in res:
+            for oper in dse['Операции']:
+                if oper['Опер_наименовние'] in self.DICT_VAR_OPER:
+                    if self.DICT_VAR_OPER[oper['Опер_наименовние']][0]['kal_pl_podr'] not in dict_norm:
+                        CQT.msgbox(f"В бд не соотвествует этап {self.DICT_VAR_OPER[oper['Опер_наименовние']][0]['kal_pl_podr']}")
+                    else:
+                        dict_norm[self.DICT_VAR_OPER[oper['Опер_наименовние']][0]['kal_pl_podr']] += (oper['Опер_Тпз'] + oper['Опер_Тшт'])
+        CSQ.zapros(self.db_kplan, f"""UPDATE plan SET Статус_норм = 2 WHERE Пномер = {pnom} """)
+        if nk_stat_norm:
+            tbl.item(tbl.currentRow(), nk_stat_norm).setText(self.data_kpl.DICT_STATUS_NORM[2])
+
+    fill_norm_db(self,dict_norm,pnom)
+
+    GPL.update_local_graf(self, update=True , pnom=pnom)
+    CQT.msgbox('Успешно')
 
 def select_row(self):
     GPL.update_local_graf(self)
-
 
 def load_gui(self):
     show_fr(self)
@@ -36,7 +510,6 @@ def btn_pl_mode(self):
     if self.kpl_mode == 0:#объемный выключен
         show_fr(self,graf=1)#объемный включаем
         self.kpl_mode = 1#объемный включен
-
         VPL.load_tbl_gant(self)#объемный загрузка
 
     else:
@@ -101,13 +574,13 @@ def create_list_fields(self):
     list_tables = ['plan']
     tables = [_ for _ in CSQ.spis_tablic(self.db_kplan) if 'пл_' in _]
 
-    for i in range(len(self.DICT_PODR)):
+    for i in range(len(self.data_kpl.DICT_PODR)):
         for table in tables:
-            if table in self.DICT_PODR:
-                if self.DICT_PODR[table]['Порядок'] == i:
+            if table in self.data_kpl.DICT_PODR:
+                if self.data_kpl.DICT_PODR[table]['Порядок'] == i:
                     list_tables.append(table)
     for table in tables:
-        if table not in self.DICT_PODR:
+        if table not in self.data_kpl.DICT_PODR:
             list_tables.append(table)
     list_fields = []
     for table in list_tables:
@@ -168,13 +641,14 @@ def oform_table_editeble(self, tbl,name_field):
             CQT.ust_color_wtab(tbl,0,i,230,230,230)
 
 
-def load_tbl_edit_poz(self):
+def load_tbl_edit_poz(self: mywindow):
     list_podr = [_ for _ in CSQ.spis_tablic(self.db_kplan) if 'пл_' in _]
     list_podr.append('plan')
     list_podr.append('')
     list_podr.sort()
     self.ui.cmb_etap.clear()
     self.ui.cmb_etap.addItems(list_podr)
+    self.ui.cmb_etap.setMaxVisibleItems(len(list_podr))
     CQT.clear_tbl(self.ui.tbl_pl_add_poz)
 
 def select_etap_edit(self):
@@ -214,43 +688,43 @@ def select_etap_edit(self):
         oform_table_editeble(self, self.ui.tbl_pl_add_poz, name_field)
         if podr == 'plan':
             list_napr_deyat = []
-            for key in self.DICT_NAPR_DEYAT.keys():
-                list_napr_deyat.append(self.DICT_NAPR_DEYAT[key]['Имя'])
+            for key in self.data_kpl.DICT_NAPR_DEYAT.keys():
+                list_napr_deyat.append(self.data_kpl.DICT_NAPR_DEYAT[key]['Имя'])
             nk_napr_deyat = CQT.nom_kol_po_imen(self.ui.tbl_pl_add_poz, 'Направление_деятельности')
             CQT.add_combobox(self, self.ui.tbl_pl_add_poz, 0, nk_napr_deyat, list_napr_deyat, first_void=False,
                              conn_func=select_napr_deyat)
             try:
                 self.ui.tbl_pl_add_poz.cellWidget(0, nk_napr_deyat).setCurrentText(
-                    self.DICT_NAPR_DEYAT[int(self.ui.tbl_pl_add_poz.item(0, nk_napr_deyat).text())]['Имя'])
+                    self.data_kpl.DICT_NAPR_DEYAT[int(self.ui.tbl_pl_add_poz.item(0, nk_napr_deyat).text())]['Имя'])
             except:
                 pass
             list_status = []
-            for key in self.DICT_STATUS_POZ.keys():
-                list_status.append(self.DICT_STATUS_POZ[key]['Имя'])
+            for key in self.data_kpl.DICT_STATUS_POZ.keys():
+                list_status.append(self.data_kpl.DICT_STATUS_POZ[key]['Имя'])
             nk_status = CQT.nom_kol_po_imen(self.ui.tbl_pl_add_poz, 'Статус')
             CQT.add_combobox(self, self.ui.tbl_pl_add_poz, 0, nk_status, list_status, first_void=False,
                              conn_func=select_status)
             try:
                 self.ui.tbl_pl_add_poz.cellWidget(0, nk_status).setCurrentText(
-                    self.DICT_STATUS_POZ[int(self.ui.tbl_pl_add_poz.item(0, nk_status).text())]['Имя'])
+                    self.data_kpl.DICT_STATUS_POZ[int(self.ui.tbl_pl_add_poz.item(0, nk_status).text())]['Имя'])
             except:
                 pass
 
             list_etapi_erp = []
-            for key in self.DICT_STATUS_ETAPI_ERP.keys():
-                list_etapi_erp.append(self.DICT_STATUS_ETAPI_ERP[key]['Имя'])
+            for key in self.data_kpl.DICT_STATUS_ETAPI_ERP.keys():
+                list_etapi_erp.append(self.data_kpl.DICT_STATUS_ETAPI_ERP[key]['Имя'])
             nk_etapi_erp = CQT.nom_kol_po_imen(self.ui.tbl_pl_add_poz, 'Этапы_ЕРП')
             CQT.add_combobox(self, self.ui.tbl_pl_add_poz, 0, nk_etapi_erp, list_etapi_erp, first_void=False,
                              conn_func=select_etapi_erp)
             try:
                 self.ui.tbl_pl_add_poz.cellWidget(0, nk_etapi_erp).setCurrentText(
-                    self.DICT_STATUS_ETAPI_ERP[int(self.ui.tbl_pl_add_poz.item(0, nk_etapi_erp).text())]['Имя'])
+                    self.data_kpl.DICT_STATUS_ETAPI_ERP[int(self.ui.tbl_pl_add_poz.item(0, nk_etapi_erp).text())]['Имя'])
             except:
                 pass
         if podr == 'пл_топ':
             list_vid = []
-            for key in self.DICT_VID_PO_NAPR.keys():
-                list_vid.append(self.DICT_VID_PO_NAPR[key]['Имя'])
+            for key in self.data_kpl.DICT_VID_PO_NAPR.keys():
+                list_vid.append(self.data_kpl.DICT_VID_PO_NAPR[key]['Имя'])
             nk_vid = CQT.nom_kol_po_imen(self.ui.tbl_pl_add_poz, 'Вид')
             CQT.add_combobox(self, self.ui.tbl_pl_add_poz, 0, nk_vid, list_vid, first_void=False,
                              conn_func=select_vid)
@@ -264,7 +738,7 @@ def select_etap_edit(self):
                              conn_func=select_tech)
             try:
                 self.ui.tbl_pl_add_poz.cellWidget(0, nk_vid).setCurrentText(
-                    self.DICT_VID_PO_NAPR[int(self.ui.tbl_pl_add_poz.item(0, nk_vid).text())]['Имя'])
+                    self.data_kpl.DICT_VID_PO_NAPR[int(self.ui.tbl_pl_add_poz.item(0, nk_vid).text())]['Имя'])
             except:
                 pass
 
@@ -289,8 +763,8 @@ def clck_cld(self):
 def select_vid(self, text,  row, col):
     nk_vid = col
     val = 0
-    for key in self.DICT_VID_PO_NAPR.keys():
-        if self.DICT_VID_PO_NAPR[key]['Имя'] == text:
+    for key in self.data_kpl.DICT_VID_PO_NAPR.keys():
+        if self.data_kpl.DICT_VID_PO_NAPR[key]['Имя'] == text:
             val = key
             break
     self.ui.tbl_pl_add_poz.item(row, nk_vid).setText(str(val))
@@ -303,10 +777,10 @@ def select_tech(self, text,  row, col):
 def select_napr_deyat(self, text,  row, col):
     nk_napr_deyat = col
     val = 0
-    for key in self.DICT_NAPR_DEYAT.keys():
-        if self.DICT_NAPR_DEYAT[key]['Имя'] == text:
+    for key in self.data_kpl.DICT_NAPR_DEYAT.keys():
+        if self.data_kpl.DICT_NAPR_DEYAT[key]['Имя'] == text:
             val = key
-            tooltip = f"{self.DICT_NAPR_DEYAT[key]['Примечание']} ({self.DICT_NAPR_DEYAT[key]['Псевдоним']})"
+            tooltip = f"{self.data_kpl.DICT_NAPR_DEYAT[key]['Примечание']} ({self.data_kpl.DICT_NAPR_DEYAT[key]['Псевдоним']})"
             break
     self.ui.tbl_pl_add_poz.item(row, nk_napr_deyat).setText(str(val))
     self.ui.tbl_pl_add_poz.cellWidget(row, nk_napr_deyat).setToolTip(tooltip)
@@ -315,8 +789,8 @@ def select_napr_deyat(self, text,  row, col):
 def select_status(self, text,  row, col ):
     nk_ = col
     val = 0
-    for key in self.DICT_STATUS_POZ.keys():
-        if self.DICT_STATUS_POZ[key]['Имя'] == text:
+    for key in self.data_kpl.DICT_STATUS_POZ.keys():
+        if self.data_kpl.DICT_STATUS_POZ[key]['Имя'] == text:
             val = key
             break
     self.ui.tbl_pl_add_poz.item(row, nk_).setText(str(val))
@@ -325,8 +799,8 @@ def select_status(self, text,  row, col ):
 def select_etapi_erp(self, text,  row, col ):
     nk_ = col
     val = 0
-    for key in self.DICT_STATUS_ETAPI_ERP.keys():
-        if self.DICT_STATUS_ETAPI_ERP[key]['Имя'] == text:
+    for key in self.data_kpl.DICT_STATUS_ETAPI_ERP.keys():
+        if self.data_kpl.DICT_STATUS_ETAPI_ERP[key]['Имя'] == text:
             val = key
             break
     self.ui.tbl_pl_add_poz.item(row, nk_).setText(str(val))
@@ -334,28 +808,32 @@ def select_etapi_erp(self, text,  row, col ):
 
 def load_tbl_add_new_poz(self):
 
-    list_heads = CSQ.zapros(self.db_kplan,"""SELECT
-plan.Дата_внесения,
-plan.Позиция,
-plan.Направление_деятельности,
-plan.Приоритет,
-пл_оуп.Дата_заявки,
-пл_оуп.№проекта,
-пл_оуп.№ERP,
-пл_оуп.Дата_отгрузки_ПУ,
-пл_оуп.Количество,
-пл_оуп.ПКК,
-пл_оуп.Номенклатура_ЕРП
-FROM plan
+    list_heads = CSQ.zapros(self.db_kplan,"""SELECT 
+plan.Дата_внесения, 
+plan.Позиция, 
+plan.Направление_деятельности, 
+plan.Приоритет, 
+пл_оуп.Дата_заявки, 
+пл_оуп.№проекта, 
+пл_оуп.№ERP, 
+пл_оуп.Дата_отгрузки_ПУ, 
+пл_оуп.Количество, 
+пл_оуп.ПКК, 
+пл_оуп.Номенклатура_ЕРП 
+FROM plan 
 INNER JOIN 
-пл_оуп ON пл_оуп.НомПл = plan.Пномер
- LIMIT 1""",one=True,shapka=True )[0]
+пл_оуп ON пл_оуп.НомПл = plan.Пномер 
+ LIMIT 1""",one=True,shapka=True )
+    if list_heads == False:
+        CQT.msgbox(f'Ошибка')
+        return
+    list_heads = list_heads[0]
     list_itog = ['' for _ in list_heads]
     list_itog = [list_heads,list_itog]
     CQT.fill_wtabl(list_itog,self.ui.tbl_pl_add_poz)
     list_napr_deyat = []
-    for key in self.DICT_NAPR_DEYAT.keys():
-        list_napr_deyat.append(self.DICT_NAPR_DEYAT[key]['Имя'])
+    for key in self.data_kpl.DICT_NAPR_DEYAT.keys():
+        list_napr_deyat.append(self.data_kpl.DICT_NAPR_DEYAT[key]['Имя'])
     nk_napr_deyat = CQT.nom_kol_po_imen(self.ui.tbl_pl_add_poz,'Направление_деятельности')
     CQT.add_combobox(self,self.ui.tbl_pl_add_poz,0,nk_napr_deyat,list_napr_deyat, first_void=False,conn_func= select_napr_deyat)
     name_field = 'Пномер'
@@ -392,7 +870,7 @@ def check_add_poz(self):
             if not check_number(self,val,key,tbl):
                 return False
         if key == 'plan.Направление_деятельности':
-            if not check_db(self,val,key,tbl, self.DICT_NAPR_DEYAT):
+            if not check_db(self,val,key,tbl, self.data_kpl.DICT_NAPR_DEYAT):
                 return False
             if not check_choose(self,val,key,tbl):
                 return False
@@ -460,13 +938,16 @@ def check_edit_poz(self,old_list):
                 if not check_choose(self,val, key,tbl):
                     return False
             if key == 'plan.Направление_деятельности':
-                if not check_db(self,val,key,tbl, self.DICT_NAPR_DEYAT):
+                if not check_db(self,val,key,tbl, self.data_kpl.DICT_NAPR_DEYAT):
                     return False
             if key == 'plan.Статус':
-                if not check_db(self, val, key, tbl, self.DICT_STATUS_POZ):
+                if not check_db(self, val, key, tbl, self.data_kpl.DICT_STATUS_POZ):
                     return False
             if key == 'plan.Этапы_ЕРП':
-                if not check_db(self, val, key, tbl, self.DICT_STATUS_ETAPI_ERP):
+                if not check_db(self, val, key, tbl, self.data_kpl.DICT_STATUS_ETAPI_ERP):
+                    return False
+            if key == 'plan.Статус_норм':
+                if not check_db(self, val, key, tbl, self.data_kpl.DICT_STATUS_NORM):
                     return False
     if podr == 'пл_заг':
         for key in list_edit.keys():
@@ -514,7 +995,7 @@ def check_edit_poz(self,old_list):
             val = list_edit[key]
             if str(val) == str(old_list[key]):
                 continue
-            if key in ['пл_мех.Нчас_мех', 'пл_мех.Фчас_мех']:
+            if key in ['пл_мех.Нчас_мехобр', 'пл_мех.Фчас_мехобр']:
                 if not check_number(self, val, key, tbl):
                     return False
             if key in ['пл_мех.Пдата_нач_мехобр', 'пл_мех.Пдата_зав_мехобр',
@@ -546,16 +1027,16 @@ def check_edit_poz(self,old_list):
                     CQT.msgbox(f'{key} Не корректная запись')
                     CQT.migat(self, tbl, 0, CQT.nom_kol_po_imen(tbl, key), 1)
                     return False
-    if podr == 'пл_оуп':
+    if podr == 'пл_покр':
         for key in list_edit.keys():
             val = list_edit[key]
             if str(val) == str(old_list[key]):
                 continue
-            if key in ['пл_оуп.Нчас_покр','пл_оуп.Фчас_покр']:
+            if key in ['пл_покр.Нчас_покр','пл_покр.Фчас_покр']:
                 if not check_number(self, val, key, tbl):
                     return False
-            if key in ['пл_оуп.Пдата_нач_покр', 'пл_оуп.Пдата_зав_покр','пл_оуп.Фдата_нач_покр',
-                       'пл_оуп.Фдата_зав_покр']:
+            if key in ['пл_покр.Пдата_нач_покр', 'пл_покр.Пдата_зав_покр','пл_покр.Фдата_нач_покр',
+                       'пл_покр.Фдата_зав_покр']:
                 if not check_date(self, val, key, tbl):
                     return False
     if podr == 'пл_сб':
@@ -578,12 +1059,12 @@ def check_edit_poz(self,old_list):
                        'пл_топ.Уд_вес_ВО','пл_топ.Нчас_сб_ВО','пл_топ.Число_ДСЕ']:
                 if not check_number(self, val, key, tbl):
                     return False
-            if key in ['пл_топ.Пдата_ТД', 'пл_топ.Фдата_ТД', 'пл_топ.Уд_вес_ТД','пл_топ.Дата_МК',
+            if key in ['пл_топ.Пдата_ТД', 'пл_топ.Фдата_ТД', 'пл_топ.Нчас_ТД','пл_топ.Дата_МК',
                        'пл_топ.Спецификация_дата']:
                 if not check_date(self, val, key, tbl):
                     return False
             if key == 'пл_топ.Вид':
-                if not check_db(self,val,key,tbl, self.DICT_VID_PO_NAPR):
+                if not check_db(self,val,key,tbl, self.data_kpl.DICT_VID_PO_NAPR):
                     return False
             if key == 'пл_топ.Спецификация_ЕРП':
                 nk_npoz = CQT.nom_kol_po_imen(self.ui.tbl_pl_add_poz,'НомПл')
@@ -628,10 +1109,12 @@ def btn_pl_ok_add_poz_click(self):
         if CQT.msgboxgYN(msg=msg_str):
             return list_sql
         return False
+
     def apply_edit_tabel(self,list_sql):
         for zapros in list_sql:
             CSQ.zapros(self.db_kplan,zapros)
         CQT.msgbox(f'Успешно')
+        VPL.get_max_mosh_from_db(self)
 
     def add_new_poz(self):
         if not check_add_poz(self):
@@ -737,8 +1220,12 @@ def btn_pl_ok_add_poz_click(self):
         rez = None
         if self.regim == 'add':
            rez = add_new_poz(self)
+           if rez != None:
+               GPL.update_local_graf(self, True)
         if self.regim == 'edit':
             rez = edit_poz(self)
+            if rez != None:
+                GPL.update_local_graf(self,True)
         if self.regim == 'cnf':
             rez = save_cnf(self)
         if rez == None:
@@ -793,7 +1280,10 @@ def show_fr(self,fr='',graf=0):
 
 
 def check_db(self):
-    return  F.nalich_file(self.db_kplan)
+    if 'SRV' in self.db_kplan:
+        return True
+    else:
+        return  F.nalich_file(self.db_kplan)
 
 def current_cell_is_data_type(tbl):
     try:
@@ -833,7 +1323,15 @@ BEGIN TRANSACTION;
 CREATE TABLE napravlenie (name TEXT NOT NULL PRIMARY KEY UNIQUE, val INTEGER NOT NULL);
 
 -- Таблица: plan
-CREATE TABLE "plan" (Пномер INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL UNIQUE ON CONFLICT ROLLBACK, Дата_заявки TEXT DEFAULT "", №проекта TEXT DEFAULT "", №ERP TEXT DEFAULT "", Позиция TEXT DEFAULT "", Вид TEXT DEFAULT "", Количество INTEGER DEFAULT (1), Вес_ВО INTEGER DEFAULT (1), Дата_отгрузки_ПУ TEXT DEFAULT "", Уд_вес_ВО INTEGER DEFAULT (1), Нчас_сб_ВО INTEGER DEFAULT (1), ПКК TEXT DEFAULT "", Отв_технолог INTEGER DEFAULT (1), Статус TEXT DEFAULT "", Пдата_КД TEXT DEFAULT "", Фдата_КД TEXT DEFAULT "", Вес_КД INTEGER DEFAULT (1), Направление TEXT DEFAULT "", Пдата_ТД TEXT DEFAULT "", Фдата_ТД TEXT DEFAULT "", Уд_вес_ТД INTEGER DEFAULT (1), Число_ДСЕ INTEGER DEFAULT (1), МК INTEGER DEFAULT (1), Нчас_заг INTEGER DEFAULT (1), Нчас_мех INTEGER DEFAULT (1), Нчас_сб INTEGER DEFAULT (1), Нчас_покр INTEGER DEFAULT (1), Нчас_вспом INTEGER DEFAULT (1), Этапы_ЕРП INTEGER DEFAULT (0), Примечание TEXT DEFAULT "", Приоритет INTEGER DEFAULT (1));
+CREATE TABLE "plan" (Пномер INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL UNIQUE ON CONFLICT ROLLBACK, 
+Дата_заявки TEXT DEFAULT "", №проекта TEXT DEFAULT "", №ERP TEXT DEFAULT "", Позиция TEXT DEFAULT "", 
+Вид TEXT DEFAULT "", Количество INTEGER DEFAULT (1), Вес_ВО INTEGER DEFAULT (1), Дата_отгрузки_ПУ TEXT DEFAULT "", 
+Уд_вес_ВО INTEGER DEFAULT (1), Нчас_сб_ВО INTEGER DEFAULT (1), ПКК TEXT DEFAULT "", Отв_технолог INTEGER DEFAULT (1), 
+Статус TEXT DEFAULT "", Пдата_КД TEXT DEFAULT "", Фдата_КД TEXT DEFAULT "", Вес_КД INTEGER DEFAULT (1), 
+Направление TEXT DEFAULT "", Пдата_ТД TEXT DEFAULT "", Фдата_ТД TEXT DEFAULT "", Нчас_ТД INTEGER DEFAULT (1), 
+Число_ДСЕ INTEGER DEFAULT (1), МК INTEGER DEFAULT (1), Нчас_заг INTEGER DEFAULT (1), Нчас_мехобр INTEGER DEFAULT (1), 
+Нчас_сб INTEGER DEFAULT (1), Нчас_покр INTEGER DEFAULT (1), Нчас_вспом INTEGER DEFAULT (1), 
+Этапы_ЕРП INTEGER DEFAULT (0), Примечание TEXT DEFAULT "", Приоритет INTEGER DEFAULT (1));
 
 -- Таблица: vid_pr
 CREATE TABLE vid_pr (name TEXT DEFAULT "", koef_proizv INTEGER DEFAULT (1));
@@ -844,18 +1342,38 @@ PRAGMA foreign_keys = on;
 """
     CSQ.sozd_bd_sql(self.db_kplan,frase_tmp)
 
-def load_db(self,pnom=False):
+def load_db(self:mywindow,pnom=False):
+    def check_tabels(self:mywindow):
+        list_pnoms = CSQ.zapros(self.db_kplan,f"""SELECT Пномер FROM plan""",one_column=True,shapka=False)
+        list_tbls = CSQ.spis_tablic(self.db_kplan)
+        for tbl in list_tbls:
+            if 'пл_' == tbl[:3]:
+                list_nompl = CSQ.zapros(self.db_kplan, f"""SELECT НомПл  FROM {tbl}""",one_column=True,shapka=False)
+                differ_list = [[_] for _ in list_pnoms if _ not in list_nompl]
+                if len(differ_list) > 0:
+                    count_fields = len(CSQ.zapros(self.db_kplan,f'select * from {tbl} Limit 1')[0])
+                    for i in range(len(differ_list)):
+                        for _ in range(count_fields-1):
+                            differ_list[i].append('')
+                    CSQ.zapros(self.db_kplan,f"""INSERT INTO  {tbl} VALUES({','.join(["?" for _ in range(count_fields)])})""",spisok_spiskov= differ_list)
+
+    check_tabels(self)
     dict_inner = {'plan.Направление_деятельности as "plan.Направление_деятельности"': 'napravl_deyat.Имя as "plan.Направление_деятельности"',
                   'plan.Статус as "plan.Статус"': 'status_poz.Имя as "plan.Статус"',
                   'plan.Этапы_ЕРП as "plan.Этапы_ЕРП"': 'status_etapi_erp.Имя as "plan.Этапы_ЕРП"',
                   'пл_топ.Вид as "пл_топ.Вид"': 'Виды_по_напр.Имя as "пл_топ.Вид"',
+                  'plan.local_graf as "plan.local_graf"': '"" as "plan.local_graf"',
+                  'plan.Статус_норм as "plan.Статус_норм"': 'status_norm.Имя as "plan.Статус_норм"'
                   }
     if check_db(self) == False:
         create_db(self)
 
 
     rez_list_tabels = ['napravlenie.name as "Направление"', 'napravl_deyat.Псевдоним as "Псевдоним"']
-    postfix = ''
+    if not self.ui.chk_kpl_zaversch.isChecked():
+        postfix = 'WHERE status_poz.Имя != "Завершена"'
+    else:
+        postfix = ''
     if pnom:
         postfix = f'WHERE plan.Пномер == {int(pnom)}'
         list_conf = load_list_fields(self,True)
@@ -884,11 +1402,13 @@ def load_db(self,pnom=False):
     пл_мех ON пл_мех.НомПл = plan.Пномер,
     пл_сб ON пл_сб.НомПл = plan.Пномер,
     пл_покр ON пл_покр.НомПл = plan.Пномер,
+    пл_отк ON пл_отк.НомПл = plan.Пномер,
     napravl_deyat ON napravl_deyat.Пномер = plan.Направление_деятельности,
     status_poz ON status_poz.Пномер = plan.Статус,
     status_etapi_erp ON status_etapi_erp.Пномер = plan.Этапы_ЕРП,
     Виды_по_напр ON Виды_по_напр.Пномер = пл_топ.Вид,
-    napravlenie ON napravlenie.Пномер = napravl_deyat.Направление
+    napravlenie ON napravlenie.Пномер = napravl_deyat.Направление,
+    status_norm ON status_norm.Код = plan.Статус_норм
     {postfix};
     """)
 
@@ -903,29 +1423,40 @@ def load_table_db(self):
         nk_local_graf = CQT.nom_kol_po_imen(tbl, 'plan.local_graf')
         self.ui.tbl_kal_pl.setColumnHidden(nk_local_graf, True)
         for i in range(tbl.rowCount()):
-            r, g, b = self.DICT_NAPR_DEYAT_NAME[tbl.item(i,nk_napr).text()]['Цвет'].split(';')
+            r, g, b = self.data_kpl.DICT_NAPR_DEYAT_NAME[tbl.item(i,nk_napr).text()]['Цвет'].split(';')
             CQT.ust_color_wtab(tbl,i,nk_pseudo,r,g,b)
             CQT.font_cell_size_format(tbl,i,nk_nom_pr,underline=True)
 
 
     list_from_db, list_conf = load_db(self)
+    if list_from_db == False:
+        CQT.msgbox(f'Ошибка загрузки таблиц')
+        return
     #if len(list) == 1:
     #    list = add_excell(list)
     #list = CSQ.fix_types_table(list)
-    CQT.fill_wtabl(list_from_db,self.ui.tbl_kal_pl, auto_type=True,set_editeble_col_nomera=[])
+    CQT.fill_wtabl(list_from_db,self.ui.tbl_kal_pl, auto_type=True,set_editeble_col_nomera=[],height_row=20)
     for i in range(len(list_conf[0])):
         if CQT.nom_kol_po_imen(self.ui.tbl_kal_pl, list_conf[0][i]) != None:
             if list_conf[1][i] == 2:
                 self.ui.tbl_kal_pl.setColumnHidden(CQT.nom_kol_po_imen(self.ui.tbl_kal_pl, list_conf[0][i]),True)
             else:
                 self.ui.tbl_kal_pl.setColumnHidden(CQT.nom_kol_po_imen(self.ui.tbl_kal_pl, list_conf[0][i]), False)
-    CMS.zapolnit_filtr(self,self.ui.tbl_filtr_kal_pl,self.ui.tbl_kal_pl,hidden_scroll=True)
-
+    spis_znach =[['' for _ in  list_from_db[0]]]
+    nk_status= F.nom_kol_po_im_v_shap(list_from_db,'plan.Статус')
+    spis_znach[-1][nk_status] = 'Изготовление|Подготовка'
+    CMS.zapolnit_filtr(self,self.ui.tbl_filtr_kal_pl,self.ui.tbl_kal_pl,hidden_scroll=True,spis_znach=spis_znach)
     oforml_table(self)
     CMS.load_column_widths(self,self.ui.tbl_kal_pl)
     CMS.update_width_filtr(self.ui.tbl_kal_pl, self.ui.tbl_filtr_kal_pl)
+    CMS.primenit_filtr(self,self.ui.tbl_filtr_kal_pl,self.ui.tbl_kal_pl)
 
-
+def set_params_kpl(self: mywindow):
+    kpl_bool_load_zav = self.ui.chk_kpl_zaversch.isChecked()
+    try:
+         CMS.save_tmp_path('kpl_bool_load_zav',str(int(kpl_bool_load_zav)))
+    except:
+        pass
 
 @CQT.onerror
 def clck_tbl_kal_pl_tbl(self,tbl):
@@ -945,6 +1476,7 @@ def show_tabel(self):
         list_month = [_ for _ in CSQ.spis_tablic(self.db_kplan) if 'm_cld_' in _]
         list_month.insert(0,'')
         self.ui.cmb_etap.addItems(list_month)
+        self.ui.cmb_etap.setMaxCount(len(list_month))
     else:
         self.ui.fr_pl_add_poz.setHidden(True)
         self.ui.fr_gant_local.setHidden(False)
@@ -956,29 +1488,7 @@ def show_tabel(self):
 @CQT.onerror
 def clck_tbl_preview(self,tbl):
     summ_selct_tbl(self,tbl)
-    load_info_select_block(self,tbl)
-
-def load_info_select_block(self,tbl):
-    r = tbl.currentRow()
-    c = tbl.currentColumn()
-    msg =  self.statusBar().currentMessage()
-    try:
-        if self.list_tbl_info[r+1][c] == '':
-            CQT.statusbar_text(self,'')
-            tbl.setToolTip('')
-    except:
-        return
-    list = copy.deepcopy(self.list_tbl_info[r+1][c])
-    info = ''
-    if type(list) == type([]):
-        tmp = []
-        for item in list:
-            item.pop("Имя_нз",list)
-            tmp.append(str(item))
-        info = ('\n'.join(tmp))
-        tbl.setToolTip(info)
-    CQT.statusbar_text(self,
-                       f'{msg} |  {info}')
+    #GPL.load_info_select_block(self,tbl)
 
 
 
@@ -987,6 +1497,7 @@ def summ_selct_tbl(self,tbl):
     CMS.on_section_resized(self)
     summ= 0
     sch = 1
+    self.glob_kpl_summ_selct_tbl = f'                                         '
     try:
         #tbl = self.ui.tbl_kal_pl
         #col = tbl.currentColumn()
@@ -1001,18 +1512,14 @@ def summ_selct_tbl(self,tbl):
                     sch+=1
             except:
                 pass
-        CQT.statusbar_text(self,f'                                         Сумма: {summ},  Среднее: {round(summ/sch,3)}')
+        self.glob_kpl_summ_selct_tbl = f'                                         Сумма: {summ},  Среднее: {round(summ/sch,3)}'
     except:
-        CQT.statusbar_text(self,
-                           f'                                         ')
         pass
     try:
-        CQT.statusbar_text(self, f'                                         Сумма: {summ},  Среднее: {round(summ / sch,3)}')
+        self.glob_kpl_summ_selct_tbl = f'                                         Сумма: {summ},  Среднее: {round(summ / sch,3)}'
     except:
-        CQT.statusbar_text(self,
-                           f'                                         ')
         pass
-
+    CQT.statusbar_text(self,self.glob_kpl_summ_selct_tbl)
 
 def add_excell(list):
     list_of_pr = F.otkr_f('O:\Производство Powerz\Отдел технолога\ТД\Учет табель\бд_проекты\BD_Proect.txt',separ ='|',utf8=False)

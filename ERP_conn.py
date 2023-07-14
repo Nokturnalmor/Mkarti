@@ -39,24 +39,6 @@ def connect():
 
 def connect_test():
     print('Try connect to ERP')
-    print(F.user_name())
-    #put_f = F.scfg('cash') + F.sep() + 'users_erp.txt'
-    #if F.nalich_file(put_f) == False:
-    #    return 'Не найен файл с ключами пользователей ерп'
-    #print("Файл найден")
-    #spis_users = F.otkr_f(put_f,True,separ='|')
-    spis_users = [["a.belyakov","Беляков Антон Геннадьевич","25012022"],["a.stepanova","Степанова Алёна Сергеевна","25012022"]]
-    login = ''
-    password = ''
-    for i in range(len(spis_users)):
-        if spis_users[i][0] == F.user_name():
-            print("Пользователь найден")
-            login = spis_users[i][1]
-            password = spis_users[i][2]
-            break
-    if login == '' or password == '':
-        return 'Не найден логин/пароль'
-    #V83_CONN_STRING = 'Srvr="novgorod";Ref="ERP";Usr="Беляков Антон Геннадьевич";Pwd="25012022";'
     V83_CONN_STRING = f'Srvr="KE-IT02";Ref="ERP_Copy";Usr="Test";Pwd="Df90cv";'
     print(f'Ввод {V83_CONN_STRING}')
     pythoncom.CoInitialize()
@@ -65,7 +47,6 @@ def connect_test():
     except:
         print('err')
     print('         .... OK')
-    print('')
     return
 
 def query_mat(mat, V83):

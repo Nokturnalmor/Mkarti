@@ -10,7 +10,7 @@ import project_cust_38.xml_v_drevo as XML
 #TODO округлить до 3 знаков количество
 #TODO потерян рычаг
 
-
+@CQT.onerror
 def spis_res_erp_po_mk(self, nom_mk: int, kolich: int):
     list_set_mat_report = set()
     list_mat_report = []
@@ -41,8 +41,13 @@ def spis_res_erp_po_mk(self, nom_mk: int, kolich: int):
         return
     for i in range(len(spis_dse)):
         if spis_dse[i]['ПКИ'] == '0':
+
+            try:
+                dreva_kod = spis_dse[i]['dreva_kod']
+            except:
+                dreva_kod = ''
             Основное_наименование_РС = ' '.join(
-                (spis_dse[i]['dreva_kod'], spis_dse[i]['Номенклатурный_номер'], spis_dse[i]['Наименование']))
+                (dreva_kod, spis_dse[i]['Номенклатурный_номер'], spis_dse[i]['Наименование']))
             Основное_Номенклатура_Продукция = ' '.join((spis_dse[i]['Номенклатурный_номер'], spis_dse[i]['Наименование']))
 
             Основное_Количество_Выпуск = spis_dse[i]['Количество']
@@ -52,9 +57,19 @@ def spis_res_erp_po_mk(self, nom_mk: int, kolich: int):
             for oper in spis_dse[i]['Операции']:
                 if oper['Опер_профессия_код'] in self.DICT_PROFESSIONS:
                     Трудозатраты_вид_работ = self.DICT_PROFESSIONS[oper['Опер_профессия_код']]['вид работ']
-                    Трудозатраты_Этап_применения = oper['Этап']
+                    try:
+                        Трудозатраты_Этап_применения = oper['Этап']
+                    except:
+                        try:
+                            Трудозатраты_Этап_применения = self.DICT_VAR_OPER[oper['Опер_наименовние']][0]['etap']
+                        except:
+                            Трудозатраты_Этап_применения = ''
                     tpz = oper['Опер_Тпз'] / spis_dse[i]['Количество']
-                    tsht = oper['Опер_Тшт_ед']
+                    try:
+                        tsht = oper['Опер_Тшт_ед']
+                    except:
+                        tsht = oper['Опер_Тшт']/spis_dse[i]['Количество']
+
                     Трудозатраты_Количество = tpz + tsht
                     if (Трудозатраты_вид_работ,Трудозатраты_Этап_применения) in dict_vidov:
                         dict_vidov[(Трудозатраты_вид_работ, Трудозатраты_Этап_применения)] =\
@@ -68,11 +83,20 @@ def spis_res_erp_po_mk(self, nom_mk: int, kolich: int):
                 else:
                     Трудозатраты_вид_работ = self.DICT_PROFESSIONS[oper['Опер_профессия_код']]['вид работ']
                     tpz = oper['Опер_Тпз'] / spis_dse[i]['Количество']
-                    tsht = oper['Опер_Тшт_ед']
+                    try:
+                        tsht = oper['Опер_Тшт_ед']
+                    except:
+                        tsht = oper['Опер_Тшт'] / spis_dse[i]['Количество']
                     Трудозатраты_Количество = round(tpz + tsht, 2)
-                    Трудозатраты_Этап_применения = oper['Этап']
+                    try:
+                        Трудозатраты_Этап_применения = oper['Этап']
+                    except:
+                        try:
+                            Трудозатраты_Этап_применения = self.DICT_VAR_OPER[oper['Опер_наименовние']][0]['etap']
+                        except:
+                            Трудозатраты_Этап_применения = ''
                     Трудозатраты_Статья_калькуляции = 'Основной ФОТ'
-                    Пп_наименование_Этапа = oper['Этап']
+                    Пп_наименование_Этапа = Трудозатраты_Этап_применения
                     #Пп_Подразделение_исполнитель = '_'.join((oper['Опер_РЦ_наименовние'], oper['Опер_РЦ_код']))
                     Пп_Подразделение_исполнитель = ''
                     Пп_ВРЦ = self.DICT_RC[oper['Опер_РЦ_код'][:-2] + '00']['Имя']
@@ -87,14 +111,20 @@ def spis_res_erp_po_mk(self, nom_mk: int, kolich: int):
                              Трудозатраты_вид_работ, round(Трудозатраты_Количество,2), Трудозатраты_Этап_применения,
                              Трудозатраты_Статья_калькуляции,
                              Пп_наименование_Этапа, Пп_Подразделение_исполнитель, Пп_ВРЦ, Пп_Время_выполнения, '',
-                             spis_dse[i]['dreva_kod'], uroven_tmp])
+                             dreva_kod, uroven_tmp])
                             dict_vidov.pop((Трудозатраты_вид_работ,Трудозатраты_Этап_применения))
 
             for oper in spis_dse[i]['Операции']:
                 if oper['Опер_профессия_код'] not in self.DICT_PROFESSIONS:
                     CQT.msgbox(f'не найдена в бд профессий {oper["Опер_профессия_код"]} в {Основное_наименование_РС}')
                 else:
-                    Пп_наименование_Этапа = oper['Этап']
+                    try:
+                        Пп_наименование_Этапа = oper['Этап']
+                    except:
+                        try:
+                            Пп_наименование_Этапа = self.DICT_VAR_OPER[oper['Опер_наименовние']][0]['etap']
+                        except:
+                            Пп_наименование_Этапа = ''
                     Пп_Подразделение_исполнитель = '_'.join((oper['Опер_РЦ_наименовние'], oper['Опер_РЦ_код']))
                     Пп_ВРЦ = self.DICT_RC[oper['Опер_РЦ_код'][:-2] + '00']['Имя']
                     Пп_Время_выполнения = ''
@@ -102,7 +132,7 @@ def spis_res_erp_po_mk(self, nom_mk: int, kolich: int):
                         fl_add, list_set_mat_report,list_mat_report = calc_filtr(self,oper,mat,list_set_mat_report,list_mat_report)
                         if fl_add:
                             list_Материалы = self.DICT_NOMEN[mat['Мат_код']]
-                            Материалы_Этап_применения = oper['Этап']
+                            Материалы_Этап_применения = Пп_наименование_Этапа
                             Материалы_Статья_калькуляции = 'Сырье'
                             if list_Материалы['Вид'] == 'Упаковочные материалы для складского хоз-ва 10.09':
                                 Материалы_Статья_калькуляции = 'Упаковка'
@@ -117,7 +147,7 @@ def spis_res_erp_po_mk(self, nom_mk: int, kolich: int):
                                  Материалы_Статья_калькуляции,
                                  "", "", "", "",
                                  Пп_наименование_Этапа, Пп_Подразделение_исполнитель, Пп_ВРЦ, Пп_Время_выполнения,
-                                 'Обеспечивать', spis_dse[i]['dreva_kod'], uroven_tmp])
+                                 'Обеспечивать', dreva_kod, uroven_tmp])
 
             if i + 1 < len(spis_dse):
                 for j in range(i + 1, len(spis_dse)):
@@ -136,7 +166,7 @@ def spis_res_erp_po_mk(self, nom_mk: int, kolich: int):
                              '', '', '', '',
                              'Сборка+сварка', 'Сборка_010301', 'Слесарно-каркасные и сборочно-сварочые работы', '',
                              Способы_получения_материала,
-                             spis_dse[i]['dreva_kod'], uroven_tmp])
+                             dreva_kod, uroven_tmp])
                     if spis_dse[j]['Уровень'] <= uroven_tmp:
                         break
     list_set_mat_report = list(list_set_mat_report)
